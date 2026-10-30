@@ -73,6 +73,7 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 
 ## Files
 - `ITCH_PAGE.md`: ready-to-paste itch.io page text and upload settings.
+- `itch/`: cover image and screenshots for the itch.io page.
 - `index.html`: the whole game (HTML5 canvas, Web Audio music and sound effects, saves in the browser). No build step.
 - `assets/`: art generated with Higgsfield (hero, gem, falling rock, portrait and landscape cave backgrounds).
 

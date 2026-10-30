@@ -36,6 +36,10 @@ Ember Hollow is a one-thumb arcade game about speed:
 - Art: Higgsfield (Z Image) for the caveman, gems, rocks and cave background, plus Higgsfield background removal.
 - Code, music and sound: written with Claude. All music and sound effects are generated live with the Web Audio API.
 
+## Images
+- Cover image: `itch/cover-630x500.png` (or the sharper `itch/cover-1260x1000.png`, same ratio).
+- Screenshots, in this order: `itch/screenshot-1-title.png`, `itch/screenshot-2-speed-bonus.png`, `itch/screenshot-3-lightning.png`, `itch/screenshot-4-slow-time.png`, `itch/screenshot-5-speed-up.png`.
+
 ## Upload settings
 - Kind of project: HTML.
 - Upload `ember-hollow-itch.zip` (contains `index.html` and `assets/`) and tick "This file will be played in the browser".
