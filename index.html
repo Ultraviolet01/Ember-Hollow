@@ -153,7 +153,7 @@ p { margin: 0; line-height: 1.45; }
       <button class="btn alt small" id="musicBtn" aria-pressed="true">Music on</button>
       <button class="btn alt small" id="soundBtn" aria-pressed="true">Sound on</button>
     </div>
-    <p class="bests">Best haul <b id="tBest">0</b><span aria-hidden="true">|</span>Best wave <b id="tWave">-</b></p>
+    <p class="bests">Best haul <b id="tBest">0</b><span aria-hidden="true">|</span>Best wave <b id="tWave">-</b><span aria-hidden="true">|</span>Gems <b id="tGems">0</b></p>
   </div>
 </div>
 
@@ -444,7 +444,7 @@ p { margin: 0; line-height: 1.45; }
       t: 0, wave: 1, waveT: 0, spawnT: 1.4,
       score: 0, delivered: 0, streak: 0,
       hero: { x: 300, dir: 1, carry: false, pickX: 0, inv: 0, run: 0 },
-      rocks: [], gems: [], parts: [], texts: [], flying: [], banked: 0, gemT: 0.6,
+      rocks: [], gems: [], parts: [], texts: [], flying: [], banked: save.bank, gemT: 0.6,
       shake: 0, banner: { text: 'Wave 1', sub: 'Hold left or right to run', t: 2.4 }, flash: 0,
       gemClock: 0, clockOn: false, slow: 0, slowGem: null, slowT: 12, pulse: 0, dustT: 0,
     };
@@ -529,7 +529,7 @@ p { margin: 0; line-height: 1.45; }
 
   function goTitle() {
     mode = 'title'; G = null;
-    $('tBest').textContent = save.best; $('tWave').textContent = save.bestWave || '-';
+    $('tBest').textContent = save.best; $('tWave').textContent = save.bestWave || '-'; $('tGems').textContent = save.bank;
     syncToggles();
     Music.play('title');
     show('title');
@@ -543,11 +543,10 @@ p { margin: 0; line-height: 1.45; }
     const isBestWave = G.wave > G.startBestWave;
     save.best = Math.max(save.best, G.score);
     save.bestWave = Math.max(save.bestWave, G.wave);
-    save.bank += G.delivered;
     persist();
     $('oScore').textContent = G.score; $('oBest').textContent = save.best;
     $('oGems').textContent = '+' + G.delivered; $('oTime').textContent = clock(G.t);
-    $('oWave').textContent = 'Banked gems carry over to the Trader.';
+    $('oWave').textContent = `You have ${save.bank} gems to spend at the Trader.`;
     $('newBest').hidden = !isBest; $('newWave').hidden = !isBestWave;
     $('oWaveN').textContent = G.wave; $('oBestWave').textContent = save.bestWave;
     setTimeout(() => { if (mode === 'over') { show('over'); $('againBtn').focus(); } }, 900);
@@ -705,6 +704,7 @@ p { margin: 0; line-height: 1.45; }
       G.clockOn = false;
       const value = 10 + Math.round((h.pickX - HOME_X) / 60) + G.streak * 2 + rush;
       G.streak++; G.score += value; G.delivered++;
+      save.bank++; persist();   // saved right away, so quitting or restarting never loses it
       floatText(h.x + 40, GROUND - HERO_H - 30, '+' + value, '#ffd58e');
       if (rush > 0) { floatText(h.x + 40, GROUND - HERO_H - 72, (fast ? 'Lightning! +' : 'Quick! +') + rush, fast ? '#8fd8ff' : '#5ad6c4'); if (fast) sfx.lightning(); }
       else if (G.streak > 1) floatText(h.x + 40, GROUND - HERO_H - 72, 'Streak x' + G.streak, '#5ad6c4');

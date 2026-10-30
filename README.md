@@ -57,6 +57,8 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 ## Saved on this device
 - Best wave reached (saved the moment you reach a new wave, so it survives closing the tab).
 - Best haul (score), banked gems, shop upgrades and the Music and Sound settings.
+- Each gem is saved the moment it lands in the bank, so restarting, going back to camp or closing the tab mid-run never loses it.
+- The wall bank and the title screen show your total saved gems; spending them at the Trader lowers the total.
 - Everything is stored in the browser's local storage on this device only.
 
 ## Waves
