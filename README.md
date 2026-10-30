@@ -43,9 +43,17 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 - Each banked gem is worth 10 points, plus more the further from the bank you grabbed it.
 - Banking in a row adds a streak bonus of +2 per streak level.
 
+## Sound
+- All sound is made in code with the Web Audio API. There are no audio files.
+- Background music plays the whole time: a calm cave tune on the title, shop and game over screens, and a drum-driven version during a run.
+- The run music speeds up with every wave (116 bpm at wave 1, up to 176 bpm), so you hear the Speed theme as well as see it.
+- Sound effects: gem pickup chime, gem clinking into the wall bank (the reward run gets higher with each streak), a crack when a rock breaks loose, a rock smash, the bonk when a rock hits the caveman, a wave fanfare, the 3-2-1 resume countdown, and a sad game over tune.
+- Music and Sound have separate on/off buttons on the title screen. Both choices are saved on this device.
+- Audio starts after the first tap or key press, because browsers block sound until then.
+
 ## Saved on this device
 - Best wave reached (saved the moment you reach a new wave, so it survives closing the tab).
-- Best haul (score), banked gems and shop upgrades.
+- Best haul (score), banked gems, shop upgrades and the Music and Sound settings.
 - Everything is stored in the browser's local storage on this device only.
 
 ## Waves
@@ -61,7 +69,7 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 - Long Arms: bigger grab range (3 levels).
 
 ## Files
-- `index.html`: the whole game (HTML5 canvas, synthesised sound, saves in the browser). No build step.
+- `index.html`: the whole game (HTML5 canvas, Web Audio music and sound effects, saves in the browser). No build step.
 - `assets/`: art generated with Higgsfield (hero, gem, falling rock, portrait and landscape cave backgrounds).
 
 ## Run locally
