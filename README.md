@@ -27,16 +27,16 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 
 ### How this build meets them
 - Portrait 720x1280 game world, scaled to fit any phone screen.
-- One-touch control: tap anywhere to turn around.
+- Touch control: hold the left or right half of the screen to run that way. Arrows in the bottom corners show which side is held.
 - Plain HTML5, no build step. Upload `index.html` and `assets/` as an HTML zip on itch.io and set it to "playable in the browser".
 - AI tools used: Higgsfield (Z Image for the hero, gem, rock and cave art, plus background removal) and Claude (game code).
 
 ## How to play
-- Your caveman runs on his own.
-- Tap, click or press Space to turn around. Arrow keys also set direction.
+- Hold the left half of the screen to run left, the right half to run right. Let go and he stops.
+- On a keyboard, hold the Left/Right arrow keys or A/D.
 - One gem appears on the cave floor at a time. Run over it to pick it up. The next one only appears after you bank it.
 - Carry one gem at a time back to the stone bank in the left cave wall. It flies into the bank and stacks up there.
-- Rocks break off the ceiling at random spots. Each rock first appears hanging from the ceiling, shaking, with grit falling and a shadow growing on the floor, then it drops.
+- Rocks fall straight down from the top of the screen at random spots. A shadow on the floor and a trickle of grit show where one is about to come down.
 - One rock on the head and the run is over instantly.
 
 ## Scoring
@@ -58,13 +58,13 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 
 ## Waves
 - A new wave starts every 24 seconds.
-- Rocks hang for about 0.75 seconds (down to 0.4 in later waves), then hit the floor in under half a second.
-- Each wave makes the caveman run 7% faster (up to wave 11) and the rocks fall faster, more often and with less warning.
+- The floor shadow appears about 0.45 seconds before a rock comes into view (down to 0.2 in later waves), then the rock takes under a second to reach the floor.
+- Each wave makes the caveman's run speed 7% faster (up to wave 11) and the rocks fall faster, more often and with less warning.
 - From wave 2, two rocks can drop at once.
 
 ## Trader (shop)
 - Banked gems from every run are saved and can be spent between runs.
-- Keen Ears: rock warnings start 15% sooner per level (2 levels).
+- Keen Ears: the floor shadow warning appears 15% sooner per level (2 levels).
 - Quick Feet: +8% run speed (3 levels).
 - Long Arms: bigger grab range (3 levels).
 
