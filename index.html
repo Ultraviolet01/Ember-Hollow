@@ -82,9 +82,14 @@ p { margin: 0; line-height: 1.45; }
 
 /* Title screen sits on the right, leaving the hero and campfire visible */
 #title { place-items: end center; background: transparent; }
-#title .tablet { width: min(380px, 100%); margin-bottom: 4vh; background: rgba(44, 36, 29, 0.92); }
+#title .tablet { width: min(340px, 100%); margin-bottom: 3vh; gap: 10px; padding: 16px 18px 14px; background: rgba(44, 36, 29, 0.92); }
+#title .sub { font-size: 15px; }
+.btn.small { font-size: 17px; padding: 8px 12px; }
+.bests { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: center; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.bests b { font-family: var(--display); font-weight: 400; font-size: 20px; letter-spacing: 0; color: var(--glow); font-variant-numeric: tabular-nums; }
+.bests span { color: #5b4a3c; margin: 0 4px; }
 .logo {
-  font-size: clamp(44px, 12vw, 72px); line-height: 0.88;
+  font-size: clamp(38px, 10vw, 54px); line-height: 0.88;
   color: var(--ember);
   text-shadow: 0 5px 0 var(--ember-deep), 0 10px 0 var(--slab-edge);
 }
@@ -124,7 +129,6 @@ p { margin: 0; line-height: 1.45; }
 .pips { display: flex; gap: 5px; }
 .pips i { width: 18px; height: 7px; border-radius: 4px; background: #4a3d32; }
 .pips i.on { background: var(--teal); }
-.tip { color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 #loading { font-family: var(--display); font-size: 26px; color: var(--glow); }
 @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
 </style>
@@ -141,17 +145,13 @@ p { margin: 0; line-height: 1.45; }
 <div class="panel clear" id="title" hidden>
   <div class="tablet">
     <h1 class="logo">Ember<span>Hollow</span></h1>
-    <p class="sub">Gems are scattered across the cave floor. Grab them, stash them in the bank on the cave wall, and dodge the falling rocks.</p>
+    <p class="sub">Grab gems. Bank them. Dodge the rocks.</p>
     <button class="btn" id="playBtn">Play</button>
     <div class="row">
-      <button class="btn alt" id="shopBtn">Trader</button>
-      <button class="btn alt" id="soundBtn">Sound on</button>
+      <button class="btn alt small" id="shopBtn">Trader</button>
+      <button class="btn alt small" id="soundBtn">Sound on</button>
     </div>
-    <div class="stats">
-      <div class="stat"><small>Best haul</small><b id="tBest">0</b></div>
-      <div class="stat"><small>Best wave</small><b id="tWave">0</b></div>
-    </div>
-    <p class="tip">Tap or press Space to turn around</p>
+    <p class="bests">Best haul <b id="tBest">0</b><span aria-hidden="true">|</span>Best wave <b id="tWave">-</b></p>
   </div>
 </div>
 
