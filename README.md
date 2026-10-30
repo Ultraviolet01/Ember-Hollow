@@ -7,9 +7,10 @@ An original 2D cave arcade game. Grab the gems on the cave floor, stash them in 
 Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 
 ### How Ember Hollow fits the theme: Speed
-- Every wave speeds up both the caveman and the falling rocks.
-- Each rock gives a split-second warning, so every gem run is a narrow escape.
-- You are always choosing between grabbing a gem fast and staying alive.
+- **Speed is rewarded:** every gem starts a speed-bonus clock when it appears. Bank it within 5 seconds for up to +30 points ("Lightning!" under 2 seconds, "Quick!" after that).
+- **Speed escalates:** every wave speeds up the falling rocks, the caveman and the music, with a "SPEED UP!" flash and screen pulse.
+- **Speed can be relieved:** a rare blue gem slows every falling rock for 4 seconds while the caveman keeps full speed.
+- **Speed is visible:** dust and streaks trail the running caveman, and speed lines trail every falling rock.
 
 ### Jam rules (from the jam page)
 - Theme: Speed.
@@ -38,16 +39,18 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 - Carry one gem at a time back to the stone bank in the left cave wall. It flies into the bank and stacks up there.
 - Rocks fall straight down from the top of the screen at random spots. A shadow on the floor and a trickle of grit show where one is about to come down.
 - One rock on the head and the run is over instantly.
+- A blue gem appears every 15 to 23 seconds and stays for 6 seconds. Touch it (even while carrying a gem) to slow every rock for 4 seconds.
 
 ## Scoring
 - Each banked gem is worth 10 points, plus more the further from the bank you grabbed it.
+- Speed bonus: a ring around the gem drains over 5 seconds from the moment it appears. Bank it before the ring empties for up to +30 more. The live bonus shows under the wave bar as "RUSH +N".
 - Banking in a row adds a streak bonus of +2 per streak level.
 
 ## Sound
 - All sound is made in code with the Web Audio API. There are no audio files.
 - Background music plays the whole time: a calm cave tune on the title, shop and game over screens, and a drum-driven version during a run.
-- The run music speeds up with every wave (116 bpm at wave 1, up to 176 bpm), so you hear the Speed theme as well as see it.
-- Sound effects: gem pickup chime, gem clinking into the wall bank (the reward run gets higher with each streak), a crack when a rock breaks loose, a rock smash, the bonk when a rock hits the caveman, a wave fanfare, the 3-2-1 resume countdown, and a sad game over tune.
+- The run music speeds up with every wave (116 bpm at wave 1, up to 176 bpm), so you hear the Speed theme as well as see it. It drops to about half speed during slow time.
+- Sound effects: gem pickup chime, a lightning crackle for a fast bank, a whoosh in and out of slow time, gem clinking into the wall bank (the reward run gets higher with each streak), a crack when a rock breaks loose, a rock smash, the bonk when a rock hits the caveman, a wave fanfare, the 3-2-1 resume countdown, and a sad game over tune.
 - Music and Sound have separate on/off buttons on the title screen. Both choices are saved on this device.
 - Audio starts after the first tap or key press, because browsers block sound until then.
 
@@ -69,6 +72,7 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 - Long Arms: bigger grab range (3 levels).
 
 ## Files
+- `ITCH_PAGE.md`: ready-to-paste itch.io page text and upload settings.
 - `index.html`: the whole game (HTML5 canvas, Web Audio music and sound effects, saves in the browser). No build step.
 - `assets/`: art generated with Higgsfield (hero, gem, falling rock, portrait and landscape cave backgrounds).
 

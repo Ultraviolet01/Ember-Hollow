@@ -210,6 +210,10 @@ p { margin: 0; line-height: 1.45; }
   const ROCK_W = 50, ROCK_H = 166;
   const GEM_W = 38, GEM_H = 49;
   const WAVE_LEN = 24;
+  const RUSH = 5;               // seconds: bank a gem inside this window for a speed bonus
+  const RUSH_MAX = 30;          // speed bonus for an instant bank, shrinking to 0 at RUSH
+  const SLOW_SCALE = 0.35;      // how fast rocks move while slow time is on
+  const SLOW_LEN = 4;           // seconds of slow time from one blue gem
   const DROP_Y = -ROCK_H - 20;  // rocks start just above the screen and fall straight in
 
   const $ = (id) => document.getElementById(id);
@@ -328,6 +332,16 @@ p { margin: 0; line-height: 1.45; }
     tick: () => fx((t) => note(sfxBus, 660, t, 0.1, { type: 'square', vol: 0.06, cutoff: 2000 })),
     go: () => fx((t) => note(sfxBus, 990, t, 0.25, { type: 'square', vol: 0.06, cutoff: 2600 })),
     buy: () => fx((t) => [72, 79, 84].forEach((n, i) => note(sfxBus, midi(n), t + i * 0.07, 0.2, { type: 'triangle', vol: 0.12 }))),
+    // the speed bonus: a crackle of lightning on top of the bank chime
+    lightning: () => fx((t) => {
+      hiss(sfxBus, t + 0.05, 0.25, { vol: 0.22, type: 'highpass', freq: 4000 });
+      [96, 100, 103, 108].forEach((n, i) => note(sfxBus, midi(n), t + 0.05 + i * 0.03, 0.25, { type: 'square', vol: 0.03, cutoff: 6000 }));
+    }),
+    // a blue gem appears
+    chime: () => fx((t) => [91, 98].forEach((n, i) => note(sfxBus, midi(n), t + i * 0.12, 0.6, { type: 'sine', vol: 0.09 }))),
+    // slow time on: a long falling whoosh; off: it rises back
+    slowIn: () => fx((t) => { note(sfxBus, 900, t, 0.7, { type: 'sine', vol: 0.18, slide: -760 }); hiss(sfxBus, t, 0.7, { vol: 0.15, type: 'bandpass', freq: 700, q: 1 }); }),
+    slowOut: () => fx((t) => { note(sfxBus, 150, t, 0.45, { type: 'sine', vol: 0.15, slide: 700 }); hiss(sfxBus, t, 0.4, { vol: 0.1, type: 'bandpass', freq: 1500, q: 1 }); }),
     click: () => fx((t) => hiss(sfxBus, t, 0.04, { vol: 0.12, type: 'bandpass', freq: 1400, q: 3 })),
   };
 
@@ -363,7 +377,7 @@ p { margin: 0; line-height: 1.45; }
     resume() { const m = this.mode; this.mode = null; if (m) this.play(m); },
     pump() {
       if (!actx) return;
-      this.bpm = this.mode === 'run' ? Math.min(176, 116 + 6 * ((G ? G.wave : 1) - 1)) : 92;
+      this.bpm = this.mode === 'run' ? Math.min(176, 116 + 6 * ((G ? G.wave : 1) - 1)) * (G && G.slow > 0 ? 0.55 : 1) : 92;
       const stepLen = 60 / this.bpm / 4;
       if (this.next < actx.currentTime - 0.1) this.next = actx.currentTime + 0.05;   // timer was throttled: skip ahead, don't pile up notes
       while (this.next < actx.currentTime + 0.12) { this.beat(this.step, this.next, stepLen); this.next += stepLen; this.step = (this.step + 1) % 64; }
@@ -431,7 +445,8 @@ p { margin: 0; line-height: 1.45; }
       score: 0, delivered: 0, streak: 0,
       hero: { x: 300, dir: 1, carry: false, pickX: 0, inv: 0, run: 0 },
       rocks: [], gems: [], parts: [], texts: [], flying: [], banked: 0, gemT: 0.6,
-      shake: 0, banner: { text: 'Wave 1', t: 2.2 }, flash: 0,
+      shake: 0, banner: { text: 'Wave 1', sub: 'Hold left or right to run', t: 2.4 }, flash: 0,
+      gemClock: 0, clockOn: false, slow: 0, slowGem: null, slowT: 12, pulse: 0, dustT: 0,
     };
   }
 
@@ -458,6 +473,17 @@ p { margin: 0; line-height: 1.45; }
     while (tries < 10 && (Math.abs(x - G.hero.x) < 140 || G.gems.some((c) => Math.abs(c.x - x) < 120)));
     G.gems.push({ x, h: 0, vh: 0, t: 0, pop: 0 });
     burst(x, GROUND - 24, 6, 'spark');
+    G.gemClock = 0; G.clockOn = true;   // the speed-bonus clock starts the moment a gem appears
+  }
+  const rushBonus = () => (G.clockOn ? Math.max(0, Math.round(RUSH_MAX * (1 - G.gemClock / RUSH))) : 0);
+
+  // A rare blue gem: touch it to slow the falling rocks for a few seconds.
+  function spawnSlowGem() {
+    let x, tries = 0;
+    do { x = HOME_X + 60 + Math.random() * (RIGHT - HOME_X - 70); tries++; }
+    while (tries < 10 && (Math.abs(x - G.hero.x) < 170 || G.gems.some((c) => Math.abs(c.x - x) < 90)));
+    G.slowGem = { x, t: 0, life: 6 };
+    burst(x, GROUND - 24, 8, 'spark'); sfx.chime();
   }
 
   function burst(x, y, n, kind) {
@@ -584,6 +610,7 @@ p { margin: 0; line-height: 1.45; }
     G.texts = G.texts.filter((t) => t.t < 1.2);
     G.shake = Math.max(0, G.shake - dt * 40);
     G.flash = Math.max(0, G.flash - dt * 2.5);
+    G.pulse = Math.max(0, G.pulse - dt * 1.6);
     if (mode !== 'play') return;
 
     G.t += dt;
@@ -592,12 +619,17 @@ p { margin: 0; line-height: 1.45; }
     // waves
     G.waveT += dt;
     if (G.waveT >= WAVE_LEN) {
-      G.waveT = 0; G.wave++; G.banner = { text: 'Wave ' + G.wave, t: 2.2 }; sfx.wave();
+      G.waveT = 0; G.wave++; G.banner = { text: 'Wave ' + G.wave, sub: 'SPEED UP!', subColor: '#5ad6c4', t: 2.2 }; sfx.wave();
+      G.pulse = 1; G.shake = Math.max(G.shake, 6);
       if (G.wave > save.bestWave) { save.bestWave = G.wave; persist(); }   // kept on this device even if the tab closes mid-run
     }
 
+    // slow time: rocks (and their spawning) run at SLOW_SCALE, the caveman keeps full speed
+    if (G.slow > 0) { G.slow -= dt; if (G.slow <= 0) { G.slow = 0; sfx.slowOut(); } }
+    const ts = G.slow > 0 ? SLOW_SCALE : 1, rdt = dt * ts;
+
     // spawning
-    G.spawnT -= dt;
+    G.spawnT -= rdt;
     if (G.spawnT <= 0) {
       spawnRock();
       if (Math.random() < doubleChance(G.wave)) spawnRock();
@@ -611,12 +643,17 @@ p { margin: 0; line-height: 1.45; }
     h.moving = move !== 0 && !((move > 0 && h.x >= RIGHT) || (move < 0 && h.x <= LEFT));
     if (move) h.dir = move;
     if (h.moving) h.x = Math.min(RIGHT, Math.max(LEFT, h.x + move * heroSpeed() * dt));
+    // running dust kicks up behind the caveman, thicker as he gets faster
+    if (h.moving && (G.dustT -= dt) <= 0) {
+      G.dustT = 0.07 / waveBoost();
+      G.parts.push({ x: h.x - h.dir * 30, y: GROUND - 6, vx: -h.dir * (60 + Math.random() * 90), vy: -70 - Math.random() * 80, life: 0.3 + Math.random() * 0.2, t: 0, kind: 'dust', s: 4 + Math.random() * 5, r: 0 });
+    }
 
     // rocks
     const g = gravity(G.wave);
     for (const r of G.rocks) {
-      if (r.warn > 0) { r.warn -= dt; continue; }
-      r.vy += g * dt; r.y += r.vy * dt;
+      if (r.warn > 0) { r.warn -= rdt; continue; }
+      r.vy += g * rdt; r.y += r.vy * rdt;
       const tip = r.y + ROCK_H;
       if (h.inv <= 0 && !r.dead && Math.abs(r.x - h.x) < HERO_W * 0.26 + ROCK_W * 0.3 && tip > GROUND - HERO_H + 22 && r.y < GROUND - 10) {
         r.dead = true; hurt(r);
@@ -640,6 +677,19 @@ p { margin: 0; line-height: 1.45; }
       }
     }
     G.gems = G.gems.filter((c) => !c.taken);
+    if (G.clockOn) G.gemClock += dt;
+
+    // blue slow-time gem
+    if (!G.slowGem) { if ((G.slowT -= dt) <= 0) spawnSlowGem(); }
+    else {
+      const sg = G.slowGem; sg.t += dt; sg.life -= dt;
+      if (Math.abs(sg.x - h.x) < reach()) {
+        G.slowGem = null; G.slowT = 15 + Math.random() * 8;
+        G.slow = SLOW_LEN; sfx.slowIn();
+        burst(sg.x, GROUND - 30, 16, 'spark');
+        G.banner = { text: 'Slow time!', sub: 'Rocks slowed for ' + SLOW_LEN + 's', color: '#8fd8ff', subColor: '#fff1da', t: 1.6 };
+      } else if (sg.life <= 0) { G.slowGem = null; G.slowT = 10 + Math.random() * 6; burst(sg.x, GROUND - 16, 6, 'dust'); }
+    }
 
     // gems flying into the wall bank
     for (const f of G.flying) {
@@ -651,10 +701,13 @@ p { margin: 0; line-height: 1.45; }
     // stash in the wall bank
     if (h.carry && h.x < HOME_X) {
       h.carry = false;
-      const value = 10 + Math.round((h.pickX - HOME_X) / 60) + G.streak * 2;
+      const rush = rushBonus(), fast = G.gemClock < 2;
+      G.clockOn = false;
+      const value = 10 + Math.round((h.pickX - HOME_X) / 60) + G.streak * 2 + rush;
       G.streak++; G.score += value; G.delivered++;
-      floatText(h.x + 30, GROUND - HERO_H - 30, '+' + value, '#ffd58e');
-      if (G.streak > 1) floatText(h.x + 30, GROUND - HERO_H - 70, 'Streak x' + G.streak, '#5ad6c4');
+      floatText(h.x + 40, GROUND - HERO_H - 30, '+' + value, '#ffd58e');
+      if (rush > 0) { floatText(h.x + 40, GROUND - HERO_H - 72, (fast ? 'Lightning! +' : 'Quick! +') + rush, fast ? '#8fd8ff' : '#5ad6c4'); if (fast) sfx.lightning(); }
+      else if (G.streak > 1) floatText(h.x + 40, GROUND - HERO_H - 72, 'Streak x' + G.streak, '#5ad6c4');
       G.flying.push({ x0: h.x, y0: GROUND - HERO_H - 26, t: 0 }); sfx.bank(G.streak - 1);
     }
   }
@@ -684,7 +737,19 @@ p { margin: 0; line-height: 1.45; }
     if (h.dead) ctx.scale(1.25, 0.5);   // flattened by the rock
     if (img.hero.complete && img.hero.naturalWidth) ctx.drawImage(img.hero, -HERO_W / 2, -HERO_H, HERO_W, HERO_H);
     ctx.restore();
-    if (h.carry) drawGem(h.x + h.dir * 4, y - 26 + Math.sin(t * 13) * 2, 1.05, t);
+    if (!idle && !h.dead && G) {
+      // speed streaks trailing the caveman, longer as the waves speed him up
+      const len = 40 * waveBoost();
+      ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = 4;
+      [0.3, 0.52, 0.74].forEach((f, i) => {
+        const yy = GROUND - HERO_H * f, x0 = h.x - h.dir * (HERO_W * 0.42 + i * 6);
+        const gr = ctx.createLinearGradient(x0, 0, x0 - h.dir * len, 0);
+        gr.addColorStop(0, 'rgba(255,236,200,0.55)'); gr.addColorStop(1, 'rgba(255,236,200,0)');
+        ctx.strokeStyle = gr; ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x0 - h.dir * len, yy); ctx.stroke();
+      });
+      ctx.restore();
+    }
+    if (h.carry) { const gy = y - 26 + Math.sin(t * 13) * 2; drawRush(h.x + h.dir * 4, gy); drawGem(h.x + h.dir * 4, gy, 1.05, t); }
     if (h.dead) {
       // dizzy stars circling the flattened caveman
       const now = performance.now() / 1000;
@@ -694,15 +759,28 @@ p { margin: 0; line-height: 1.45; }
       }
     }
   }
-  function drawGem(x, y, s, t) {
+  function drawGem(x, y, s, t, blue) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const rg = ctx.createRadialGradient(x, y, 2, x, y, 46 * s);
-    rg.addColorStop(0, `rgba(255,200,110,${0.45 + Math.sin(t * 5) * 0.12})`);
-    rg.addColorStop(1, 'rgba(255,150,40,0)');
+    rg.addColorStop(0, blue ? `rgba(120,200,255,${0.55 + Math.sin(t * 7) * 0.15})` : `rgba(255,200,110,${0.45 + Math.sin(t * 5) * 0.12})`);
+    rg.addColorStop(1, blue ? 'rgba(60,140,255,0)' : 'rgba(255,150,40,0)');
     ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(x, y, 46 * s, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-    if (img.crystal.naturalWidth) ctx.drawImage(img.crystal, x - GEM_W * s / 2, y - GEM_H * s / 2, GEM_W * s, GEM_H * s);
+    const im = blue ? img.blueGem : img.crystal;
+    if (im && (im.naturalWidth || im.width)) ctx.drawImage(im, x - GEM_W * s / 2, y - GEM_H * s / 2, GEM_W * s, GEM_H * s);
+  }
+  // The speed-bonus clock: a ring around the gem that drains over RUSH seconds.
+  function drawRush(x, y) {
+    if (!G || !G.clockOn) return;
+    const f = 1 - G.gemClock / RUSH;
+    if (f <= 0) return;
+    ctx.save();
+    ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(18,14,11,0.6)'; ctx.beginPath(); ctx.arc(x, y, 36, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = f > 0.6 ? '#8fd8ff' : f > 0.3 ? '#5ad6c4' : '#f39a35';
+    ctx.beginPath(); ctx.arc(x, y, 36, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
   // A stone vault carved into the left cave wall. Banked gems stack up inside it.
   function drawBank(count, t) {
@@ -750,6 +828,7 @@ p { margin: 0; line-height: 1.45; }
     const t = now / 1000;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.save();
+    if (G && G.pulse > 0) { const z = 1 + 0.035 * G.pulse; ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2); }
     if (G && G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
 
     if (img.bg.naturalWidth) ctx.drawImage(img.bg, -10, -10, W + 20, H + 20);
@@ -794,11 +873,23 @@ p { margin: 0; line-height: 1.45; }
         }
       }
       // gems
-      for (const c of G.gems) drawGem(c.x, GROUND - GEM_H / 2 - 2 - c.h + Math.sin(c.t * 4) * 2, 0.4 + 0.6 * c.pop, t + c.x);
+      for (const c of G.gems) {
+        const gy = GROUND - GEM_H / 2 - 2 - c.h + Math.sin(c.t * 4) * 2;
+        drawRush(c.x, gy); drawGem(c.x, gy, 0.4 + 0.6 * c.pop, t + c.x);
+      }
+      if (G.slowGem) {
+        const sg = G.slowGem;
+        if (!(sg.life < 1.5 && Math.floor(sg.life * 8) % 2 === 0)) drawGem(sg.x, GROUND - GEM_H / 2 - 8 + Math.sin(sg.t * 5) * 5, Math.min(1, sg.t * 4) * 1.1, t, true);
+      }
       drawHero(h, G.hero.run, !h.moving);
       // falling rocks
       for (const r of G.rocks) {
         if (r.warn > 0) continue;
+        // speed lines above each falling rock
+        const len = Math.min(260, r.vy * 0.14);
+        const sl = ctx.createLinearGradient(0, r.y - len, 0, r.y + 30);
+        sl.addColorStop(0, 'rgba(255,236,200,0)'); sl.addColorStop(1, G.slow > 0 ? 'rgba(143,216,255,0.45)' : 'rgba(255,236,200,0.4)');
+        ctx.fillStyle = sl; ctx.fillRect(r.x - ROCK_W * 0.28, r.y - len, ROCK_W * 0.56, len + 30);
         ctx.save(); ctx.translate(r.x, r.y); ctx.rotate(r.rot);
         ctx.shadowColor = 'rgba(10,6,4,0.95)'; ctx.shadowBlur = 14;
         if (img.rock.naturalWidth) ctx.drawImage(img.rock, -ROCK_W / 2, 0, ROCK_W, ROCK_H);
@@ -815,7 +906,21 @@ p { margin: 0; line-height: 1.45; }
         const e = Math.min(1, f.t), x = f.x0 + (BANK_X - f.x0) * e, y = f.y0 + (BANK_Y + BANK_H * 0.5 - f.y0) * e - Math.sin(e * Math.PI) * 120;
         drawGem(x, y, 1 - e * 0.35, t);
       }
-      for (const tx of G.texts) { ctx.globalAlpha = 1 - tx.t / 1.2; label(tx.text, tx.x, tx.y - tx.t * 60, 34, tx.color, 'center'); ctx.globalAlpha = 1; }
+      for (const tx of G.texts) { ctx.globalAlpha = 1 - tx.t / 1.2; label(tx.text, Math.min(W - 150, Math.max(150, tx.x)), tx.y - tx.t * 60, 34, tx.color, 'center'); ctx.globalAlpha = 1; }
+      // slow time tints the cave icy blue
+      if (G.slow > 0) {
+        const a = Math.min(1, G.slow * 2, (SLOW_LEN - G.slow) * 4);
+        ctx.fillStyle = `rgba(70,150,255,${0.13 * a})`; ctx.fillRect(-20, -20, W + 40, H + 40);
+        const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75);
+        vg.addColorStop(0, 'rgba(60,140,255,0)'); vg.addColorStop(1, `rgba(60,140,255,${0.35 * a})`);
+        ctx.fillStyle = vg; ctx.fillRect(-20, -20, W + 40, H + 40);
+      }
+      // wave change: a warm flash pulses in from the edges
+      if (G.pulse > 0) {
+        const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.75);
+        vg.addColorStop(0, 'rgba(243,154,53,0)'); vg.addColorStop(1, `rgba(243,154,53,${0.5 * G.pulse})`);
+        ctx.fillStyle = vg; ctx.fillRect(-20, -20, W + 40, H + 40);
+      }
     } else {
       drawHero(idleHero, idleHero.run, true);
     }
@@ -836,6 +941,15 @@ p { margin: 0; line-height: 1.45; }
     // run clock
     label(clock(G.t), 26, 86, 28, '#fff1da');
 
+    // live speed bonus for the current gem, and the slow-time meter
+    const rb = rushBonus();
+    if (rb > 0 && mode === 'play') label('RUSH +' + rb, W / 2, 342, 28, rb > RUSH_MAX * 0.6 ? '#8fd8ff' : '#5ad6c4', 'center');
+    if (G.slow > 0) {
+      label('SLOW TIME', W / 2, 386, 26, '#8fd8ff', 'center');
+      ctx.fillStyle = 'rgba(18,14,11,0.7)'; ctx.fillRect(W / 2 - 80, 404, 160, 8);
+      ctx.fillStyle = '#8fd8ff'; ctx.fillRect(W / 2 - 80, 404, 160 * (G.slow / SLOW_LEN), 8);
+    }
+
     // touch hints: an arrow in each bottom corner, lit while that side is held
     if (mode === 'play' || mode === 'countdown') {
       const side = steer();
@@ -855,8 +969,8 @@ p { margin: 0; line-height: 1.45; }
       const a = Math.min(1, G.banner.t * 2);
       const pop = 1 + Math.max(0, G.banner.t - 1.9) * 2;
       ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, H * 0.42); ctx.scale(pop, pop);
-      label(G.banner.text, 0, 0, 96, '#f39a35', 'center');
-      if (G.wave === 1) label('Hold left or right to run', 0, 72, 34, '#fff1da', 'center');
+      label(G.banner.text, 0, 0, 96, G.banner.color || '#f39a35', 'center');
+      if (G.banner.sub) label(G.banner.sub, 0, 72, 34, G.banner.subColor || '#fff1da', 'center');
       ctx.restore();
     }
     if (mode === 'countdown') {
@@ -880,7 +994,17 @@ p { margin: 0; line-height: 1.45; }
     load('bg', 'assets/bg_portrait.jpg'), load('hero', 'assets/hero.png'),
     load('crystal', 'assets/crystal.png'), load('rock', 'assets/rock.png'),
     document.fonts ? document.fonts.load('40px "Lilita One"').catch(() => {}) : null,
-  ]).then(() => { goTitle(); });
+  ]).then(() => {
+    try {
+      const c = document.createElement('canvas'), im = img.crystal;
+      c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height), px = d.data;
+      for (let i = 0; i < px.length; i += 4) { const r = px[i]; px[i] = px[i + 2] * 0.7; px[i + 1] = px[i + 1] * 0.95; px[i + 2] = Math.min(255, r * 1.05); }
+      x.putImageData(d, 0, 0); img.blueGem = c;
+    } catch (e) { img.blueGem = img.crystal; }
+    goTitle();
+  });
   requestAnimationFrame(frame);
 })();
 </script>
