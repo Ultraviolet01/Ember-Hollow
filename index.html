@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}[hidden]{display:none!important}</style>
+<title>Ember Hollow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* Layout: one letterboxed 16:9 canvas stage; menus are stone tablets laid over the whole screen */
+:root {
+  --stone: #1b1612;
+  --slab: #2c241d;
+  --slab-edge: #120e0b;
+  --ember: #f39a35;
+  --ember-deep: #b8561a;
+  --glow: #ffd58e;
+  --teal: #5ad6c4;
+  --cream: #fff1da;
+  --muted: #c4ae92;
+  --blood: #e2513a;
+  --display: "Lilita One", "Arial Black", Impact, sans-serif;
+  --body: "Nunito", "Trebuchet MS", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--stone);
+  color: var(--cream);
+  font-family: var(--body);
+  box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+#stage { position: relative; width: 640px; height: 360px; max-width: 100%; }
+#game { display: block; width: 100%; height: 100%; border-radius: 14px; background: #0d0a08; cursor: pointer; }
+
+#pauseBtn {
+  position: absolute; top: 2.2%; right: 1.6%;
+  width: clamp(34px, 4.2%, 54px); aspect-ratio: 1; max-width: 100%;
+  border-radius: 12px; border: 3px solid var(--slab-edge);
+  background: var(--slab); color: var(--cream);
+  display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 4px 0 var(--slab-edge);
+}
+#pauseBtn svg { width: 46%; height: 46%; fill: currentColor; }
+#pauseBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--slab-edge); }
+
+.panel {
+  position: fixed; inset: 0; z-index: 5;
+  display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(14, 10, 8, 0.58);
+  overflow-y: auto;
+}
+.panel.clear { background: transparent; pointer-events: none; }
+.panel.clear > * { pointer-events: auto; }
+.tablet {
+  background: var(--slab);
+  border: 4px solid var(--slab-edge);
+  border-radius: 22px;
+  box-shadow: 0 8px 0 var(--slab-edge), 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: clamp(18px, 3vw, 34px);
+  width: min(440px, 100%);
+  display: grid; gap: 14px;
+  text-align: center;
+}
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+h2 { font-size: clamp(28px, 4.4vw, 46px); color: var(--glow); text-shadow: 0 4px 0 var(--slab-edge); }
+p { margin: 0; line-height: 1.45; }
+.sub { color: var(--muted); font-weight: 600; font-size: clamp(14px, 1.5vw, 17px); }
+
+/* Title screen sits on the right, leaving the hero and campfire visible */
+#title { place-items: center end; background: transparent; }
+#title .tablet { width: min(400px, 100%); margin-right: clamp(0px, 4vw, 60px); background: rgba(44, 36, 29, 0.92); }
+.logo {
+  font-size: clamp(44px, 7vw, 84px); line-height: 0.88;
+  color: var(--ember);
+  text-shadow: 0 5px 0 var(--ember-deep), 0 10px 0 var(--slab-edge);
+}
+.logo span { display: block; color: var(--glow); }
+@media (max-width: 640px) { #title { place-items: center; } #title .tablet { margin-right: 0; } }
+
+.btn {
+  font-family: var(--display); font-size: clamp(20px, 2.3vw, 26px); letter-spacing: 0.04em;
+  border: 3px solid var(--slab-edge); border-radius: 14px;
+  padding: 12px 18px; cursor: pointer;
+  background: var(--ember); color: #2a1406;
+  box-shadow: 0 6px 0 var(--ember-deep), 0 8px 0 var(--slab-edge);
+  transition: transform 0.06s, box-shadow 0.06s, filter 0.15s;
+}
+.btn:hover { filter: brightness(1.07); }
+.btn:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ember-deep), 0 3px 0 var(--slab-edge); }
+.btn.alt { background: #4a3d32; color: var(--cream); box-shadow: 0 6px 0 #2f261f, 0 8px 0 var(--slab-edge); }
+.btn.alt:active { box-shadow: 0 1px 0 #2f261f, 0 3px 0 var(--slab-edge); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+.btn:focus-visible, #pauseBtn:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+.row { display: flex; gap: 10px; }
+.row > .btn { flex: 1; }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat { background: rgba(0, 0, 0, 0.22); border-radius: 12px; padding: 10px 8px; display: grid; gap: 2px; }
+.stat b { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 2.6vw, 30px); color: var(--cream); font-variant-numeric: tabular-nums; }
+.stat small { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.stat.hot b { color: var(--glow); }
+.chip { justify-self: center; font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; background: var(--teal); color: #0d2a26; padding: 4px 12px; border-radius: 99px; }
+
+.bank { display: inline-flex; align-items: center; gap: 6px; justify-self: center; font-family: var(--display); font-size: 22px; color: var(--glow); font-variant-numeric: tabular-nums; }
+.bank img { width: 20px; height: auto; }
+.ups { display: grid; gap: 10px; text-align: left; }
+.up { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; background: rgba(0, 0, 0, 0.22); border-radius: 14px; padding: 12px 14px; }
+.up h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; color: var(--cream); letter-spacing: 0.02em; }
+.up p { grid-column: 1; font-size: 14px; color: var(--muted); font-weight: 600; min-width: 0; }
+.up .btn { grid-row: 1 / span 3; grid-column: 2; font-size: 17px; padding: 8px 12px; min-width: 88px; }
+.pips { display: flex; gap: 5px; }
+.pips i { width: 18px; height: 7px; border-radius: 4px; background: #4a3d32; }
+.pips i.on { background: var(--teal); }
+.tip { color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+#loading { font-family: var(--display); font-size: 26px; color: var(--glow); }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="game" aria-label="Ember Hollow game. Tap or press Space to turn around."></canvas>
+  <button id="pauseBtn" aria-label="Pause" hidden><svg viewBox="0 0 10 10"><rect x="1.5" y="1" width="2.6" height="8" rx="0.8"/><rect x="5.9" y="1" width="2.6" height="8" rx="0.8"/></svg></button>
+</div>
+
+<div class="panel" id="loadPanel"><div id="loading">Lighting the campfire...</div></div>
+
+<div class="panel clear" id="title" hidden>
+  <div class="tablet">
+    <h1 class="logo">Ember<span>Hollow</span></h1>
+    <p class="sub">Gems are scattered across the cave floor. Grab them, stash them in the bank on the cave wall, and dodge the falling rocks.</p>
+    <button class="btn" id="playBtn">Play</button>
+    <div class="row">
+      <button class="btn alt" id="shopBtn">Trader</button>
+      <button class="btn alt" id="soundBtn">Sound on</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><small>Best haul</small><b id="tBest">0</b></div>
+      <div class="stat"><small>Gems saved</small><b id="tBank">0</b></div>
+    </div>
+    <p class="tip">Tap or press Space to turn around</p>
+  </div>
+</div>
+
+<div class="panel" id="shop" hidden>
+  <div class="tablet">
+    <h2>The Trader</h2>
+    <div class="bank"><img src="assets/crystal.png" alt=""><span id="sBank">0</span> gems</div>
+    <div class="ups" id="ups"></div>
+    <button class="btn alt" id="shopBack">Back</button>
+  </div>
+</div>
+
+<div class="panel" id="pause" hidden>
+  <div class="tablet">
+    <h2>Resting</h2>
+    <button class="btn" id="resumeBtn">Resume</button>
+    <div class="row">
+      <button class="btn alt" id="restartBtn">Restart</button>
+      <button class="btn alt" id="menuBtn">Camp</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="over" hidden>
+  <div class="tablet">
+    <h2>Flattened!</h2>
+    <span class="chip" id="newBest" hidden>New best haul</span>
+    <div class="stats">
+      <div class="stat hot"><small>Haul</small><b id="oScore">0</b></div>
+      <div class="stat"><small>Best</small><b id="oBest">0</b></div>
+      <div class="stat"><small>Gems banked</small><b id="oGems">0</b></div>
+      <div class="stat"><small>Survived</small><b id="oTime">0:00</b></div>
+    </div>
+    <p class="sub" id="oWave">You reached wave 1.</p>
+    <div class="row">
+      <button class="btn" id="againBtn">Run again</button>
+      <button class="btn alt" id="overMenuBtn">Camp</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // World is laid out in a fixed 1280 x 720 space and scaled to the stage.
+  const W = 1280, H = 720;
+  const GROUND = 664;          // where feet touch the cave floor
+  const HOME_X = 225;          // wall bank edge: carry a gem past this to stash it
+  const BANK_X = 112, BANK_Y = 250, BANK_W = 150, BANK_H = 118; // stone vault in the left wall
+  const LEFT = 90, RIGHT = 1190;
+  const HERO_H = 140, HERO_W = 126;
+  const ROCK_W = 50, ROCK_H = 166;
+  const GEM_W = 38, GEM_H = 49;
+  const WAVE_LEN = 24;
+  const HANG_Y = 4;            // rocks hang here, fully visible, before they drop
+
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage'), cv = $('game'), ctx = cv.getContext('2d');
+
+  // ---------- save data ----------
+  const SAVE_KEY = 'ember-hollow-v1';
+  const save = { best: 0, bank: 0, sound: true, up: { sense: 0, feet: 0, reach: 0 } };
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s) { Object.assign(save, s); save.up = Object.assign({ sense: 0, feet: 0, reach: 0 }, s.up); }
+  } catch (e) {}
+  const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
+
+  const UPGRADES = [
+    { id: 'sense', name: 'Keen Ears', desc: 'Hear the ceiling crack 15% sooner for each level.', costs: [15, 40] },
+    { id: 'feet', name: 'Quick Feet', desc: 'Run 8% faster for each level.', costs: [10, 25, 50] },
+    { id: 'reach', name: 'Long Arms', desc: 'Grab gems from further away.', costs: [10, 25, 50] },
+  ];
+
+  // ---------- sound (synthesised, no files) ----------
+  let actx = null;
+  function audio() {
+    if (!save.sound) return null;
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { return null; }
+    return actx;
+  }
+  function tone(freq, dur, type = 'square', vol = 0.07, slide = 0, delay = 0) {
+    const a = audio(); if (!a) return;
+    const t0 = a.currentTime + delay;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t0 + dur);
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function noise(dur, vol = 0.2, cutoff = 900) {
+    const a = audio(); if (!a) return;
+    const buf = a.createBuffer(1, Math.floor(a.sampleRate * dur), a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
+    const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    f.type = 'lowpass'; f.frequency.value = cutoff; g.gain.value = vol;
+    src.buffer = buf; src.connect(f).connect(g).connect(a.destination); src.start();
+  }
+  const sfx = {
+    turn: () => tone(420, 0.05, 'square', 0.03, 120),
+    pick: () => { tone(880, 0.08, 'triangle', 0.08); tone(1320, 0.12, 'triangle', 0.07, 0, 0.06); },
+    bank: () => [660, 830, 990, 1320].forEach((f, i) => tone(f, 0.14, 'triangle', 0.07, 0, i * 0.06)),
+    crash: () => { noise(0.35, 0.22, 700); tone(140, 0.2, 'sine', 0.08, -80); },
+    hurt: () => { noise(0.3, 0.25, 1400); tone(260, 0.4, 'square', 0.08, -190); },
+    wave: () => [392, 523, 659].forEach((f, i) => tone(f, 0.18, 'triangle', 0.07, 0, i * 0.1)),
+    tick: () => tone(640, 0.09, 'square', 0.05),
+    go: () => tone(960, 0.18, 'square', 0.05),
+    lose: () => [392, 330, 262, 196].forEach((f, i) => tone(f, 0.25, 'triangle', 0.08, 0, i * 0.14)),
+    buy: () => [523, 784].forEach((f, i) => tone(f, 0.12, 'triangle', 0.08, 0, i * 0.07)),
+  };
+
+  // ---------- images ----------
+  const img = {};
+  const load = (name, src) => new Promise((res) => { const i = new Image(); i.onload = () => res(); i.onerror = () => res(); i.src = src; img[name] = i; });
+
+  // ---------- sizing ----------
+  let scale = 1, dpr = 1;
+  function resize() {
+    const cs = getComputedStyle(document.body);
+    const aw = document.body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const ah = document.body.clientHeight;
+    let w = Math.min(aw, ah * 16 / 9);
+    w = Math.max(200, Math.floor(w));
+    const h = Math.floor(w * 9 / 16);
+    stage.style.width = w + 'px'; stage.style.height = h + 'px';
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    scale = cv.width / W;
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- state ----------
+  let mode = 'loading';   // loading, title, play, paused, countdown, over, shop
+  let G = null;
+  let countdown = 0, countLast = 0;
+  const motes = Array.from({ length: 34 }, () => ({ x: Math.random() * W, y: Math.random() * H, s: 1 + Math.random() * 2.2, v: 8 + Math.random() * 18, p: Math.random() * 6 }));
+  const idleHero = { x: 330, dir: 1, run: 0, inv: 0, carry: false };
+
+  const waveBoost = () => (G ? 1 + 0.07 * Math.min(G.wave - 1, 10) : 1);
+  const heroSpeed = () => 320 * (1 + 0.08 * save.up.feet) * waveBoost();
+  const reach = () => 40 + 18 * save.up.reach;
+
+  function newRun() {
+    G = {
+      t: 0, wave: 1, waveT: 0, spawnT: 1.4,
+      score: 0, delivered: 0, streak: 0,
+      hero: { x: 330, dir: 1, carry: false, pickX: 0, inv: 0, run: 0 },
+      rocks: [], gems: [], parts: [], texts: [], flying: [], banked: 0, gemT: 0.6,
+      shake: 0, banner: { text: 'Wave 1', t: 2.2 }, flash: 0,
+    };
+  }
+
+  // ---------- difficulty ----------
+  const warnTime = (w) => Math.max(0.4, 0.75 - 0.04 * (w - 1)) * (1 + 0.15 * save.up.sense);
+  const gravity = (w) => 2800 + 320 * (w - 1);
+  const dropSpeed = (w) => 450 + 50 * (w - 1);   // rocks leave the ceiling already moving
+  const spawnGap = (w) => Math.max(0.32, 1.1 - 0.1 * (w - 1)) * (0.75 + Math.random() * 0.5);
+  const doubleChance = (w) => (w < 2 ? 0 : Math.min(0.55, (w - 1) * 0.12));
+
+  function spawnRock() {
+    let x, tries = 0;
+    do {
+      x = HOME_X + 30 + Math.random() * (RIGHT - HOME_X - 30);
+      tries++;
+    } while (tries < 8 && G.rocks.some((r) => Math.abs(r.x - x) < 70));
+    G.rocks.push({ x, y: HANG_Y, vy: dropSpeed(G.wave), warn: warnTime(G.wave), max: warnTime(G.wave), rot: (Math.random() - 0.5) * 0.16 });
+  }
+
+  function spawnGem() {
+    let x, tries = 0;
+    do { x = HOME_X + 140 + Math.random() * (RIGHT - HOME_X - 160); tries++; }
+    while (tries < 10 && (Math.abs(x - G.hero.x) < 160 || G.gems.some((c) => Math.abs(c.x - x) < 120)));
+    G.gems.push({ x, h: 0, vh: 0, t: 0, pop: 0 });
+    burst(x, GROUND - 24, 6, 'spark');
+  }
+
+  function burst(x, y, n, kind) {
+    for (let i = 0; i < n; i++) {
+      const a = kind === 'spark' ? Math.random() * Math.PI * 2 : -Math.PI * (0.1 + Math.random() * 0.8);
+      const sp = kind === 'spark' ? 120 + Math.random() * 260 : 160 + Math.random() * 320;
+      G.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5 + Math.random() * 0.5, t: 0, kind, s: kind === 'spark' ? 2 + Math.random() * 3 : 5 + Math.random() * 8, r: Math.random() * 6 });
+    }
+  }
+  function floatText(x, y, text, color) { G.texts.push({ x, y, text, color, t: 0 }); }
+
+  // ---------- input ----------
+  function turn() {
+    if (mode !== 'play') return;
+    G.hero.dir *= -1; sfx.turn();
+    burst(G.hero.x, GROUND - 4, 4, 'dust');
+  }
+  cv.addEventListener('pointerdown', (e) => { e.preventDefault(); turn(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    const k = e.key;
+    if (mode === 'play') {
+      if (k === ' ' || k === 'Enter' || k === 'ArrowUp') { e.preventDefault(); turn(); }
+      else if (k === 'ArrowLeft' || k === 'a') { if (G.hero.dir !== -1) turn(); }
+      else if (k === 'ArrowRight' || k === 'd') { if (G.hero.dir !== 1) turn(); }
+      else if (k === 'p' || k === 'Escape') pauseGame();
+    } else if (mode === 'paused' && (k === 'p' || k === 'Escape')) resumeGame();
+    else if (mode === 'title' && (k === ' ' || k === 'Enter') && document.activeElement === document.body) { e.preventDefault(); startGame(); }
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'play') pauseGame(); });
+
+  // ---------- screens ----------
+  const panels = ['title', 'shop', 'pause', 'over', 'loadPanel'];
+  function show(id) { panels.forEach((p) => { $(p).hidden = p !== id; }); $('pauseBtn').hidden = !(mode === 'play' || mode === 'countdown'); }
+
+  function goTitle() {
+    mode = 'title'; G = null;
+    $('tBest').textContent = save.best; $('tBank').textContent = save.bank;
+    $('soundBtn').textContent = save.sound ? 'Sound on' : 'Sound off';
+    show('title');
+  }
+  function startGame() { newRun(); mode = 'play'; show(null); sfx.wave(); }
+  function pauseGame() { if (mode !== 'play' && mode !== 'countdown') return; mode = 'paused'; show('pause'); $('resumeBtn').focus(); }
+  function resumeGame() { mode = 'countdown'; countdown = 3; countLast = 4; show(null); }
+  function gameOver() {
+    mode = 'over';
+    const isBest = G.score > save.best;
+    save.best = Math.max(save.best, G.score);
+    save.bank += G.delivered;
+    persist();
+    $('oScore').textContent = G.score; $('oBest').textContent = save.best;
+    $('oGems').textContent = '+' + G.delivered; $('oTime').textContent = clock(G.t);
+    $('oWave').textContent = `You reached wave ${G.wave}. Banked gems carry over to the Trader.`;
+    $('newBest').hidden = !isBest;
+    setTimeout(() => { if (mode === 'over') { show('over'); $('againBtn').focus(); } }, 900);
+    $('pauseBtn').hidden = true;
+    sfx.lose();
+  }
+  function renderShop() {
+    $('sBank').textContent = save.bank;
+    $('ups').innerHTML = '';
+    UPGRADES.forEach((u) => {
+      const lvl = save.up[u.id], maxed = lvl >= u.costs.length, cost = u.costs[lvl];
+      const el = document.createElement('div'); el.className = 'up';
+      el.innerHTML = `<h3>${u.name}</h3><p>${u.desc}</p><div class="pips">${u.costs.map((_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('')}</div>`;
+      const b = document.createElement('button'); b.className = 'btn'; b.id = 'buy-' + u.id;
+      b.textContent = maxed ? 'Maxed' : cost + ' gems';
+      b.disabled = maxed || save.bank < cost;
+      b.addEventListener('click', () => { if (save.bank < cost || maxed) return; save.bank -= cost; save.up[u.id]++; persist(); sfx.buy(); renderShop(); });
+      el.appendChild(b); $('ups').appendChild(el);
+    });
+  }
+
+  $('playBtn').addEventListener('click', () => { audio(); startGame(); });
+  $('shopBtn').addEventListener('click', () => { mode = 'shop'; renderShop(); show('shop'); });
+  $('shopBack').addEventListener('click', goTitle);
+  $('soundBtn').addEventListener('click', () => { save.sound = !save.sound; persist(); $('soundBtn').textContent = save.sound ? 'Sound on' : 'Sound off'; sfx.buy(); });
+  $('pauseBtn').addEventListener('click', pauseGame);
+  $('resumeBtn').addEventListener('click', resumeGame);
+  $('restartBtn').addEventListener('click', startGame);
+  $('menuBtn').addEventListener('click', goTitle);
+  $('againBtn').addEventListener('click', startGame);
+  $('overMenuBtn').addEventListener('click', goTitle);
+
+  const clock = (t) => { const s = Math.floor(t); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+  // ---------- update ----------
+  function update(dt) {
+    for (const m of motes) { m.y += m.v * dt; m.p += dt; if (m.y > GROUND) { m.y = -5; m.x = Math.random() * W; } }
+
+    if (mode === 'title' || mode === 'shop') { idleHero.run += dt; return; }
+    if (mode === 'countdown') {
+      countdown -= dt;
+      const n = Math.ceil(countdown);
+      if (n !== countLast && n > 0) { countLast = n; sfx.tick(); }
+      if (countdown <= 0) { mode = 'play'; sfx.go(); show(null); }
+      return;
+    }
+    if (!G || mode === 'paused') return;
+
+    // particles and text keep animating on the game over beat
+    for (const p of G.parts) { p.t += dt; p.vy += 900 * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.kind !== 'spark' && p.y > GROUND) { p.y = GROUND; p.vx *= 0.6; p.vy *= -0.3; } }
+    G.parts = G.parts.filter((p) => p.t < p.life);
+    for (const t of G.texts) t.t += dt;
+    G.texts = G.texts.filter((t) => t.t < 1.2);
+    G.shake = Math.max(0, G.shake - dt * 40);
+    G.flash = Math.max(0, G.flash - dt * 2.5);
+    if (mode !== 'play') return;
+
+    G.t += dt;
+    G.banner.t -= dt;
+
+    // waves
+    G.waveT += dt;
+    if (G.waveT >= WAVE_LEN) { G.waveT = 0; G.wave++; G.banner = { text: 'Wave ' + G.wave, t: 2.2 }; sfx.wave(); }
+
+    // spawning
+    G.spawnT -= dt;
+    if (G.spawnT <= 0) {
+      spawnRock();
+      if (Math.random() < doubleChance(G.wave)) spawnRock();
+      G.spawnT = spawnGap(G.wave);
+    }
+
+    // hero
+    const h = G.hero;
+    h.run += dt; h.inv = Math.max(0, h.inv - dt);
+    h.x += h.dir * heroSpeed() * dt;
+    if (h.x > RIGHT) { h.x = RIGHT; h.dir = -1; }
+    if (h.x < LEFT) { h.x = LEFT; h.dir = 1; }
+
+    // rocks
+    const g = gravity(G.wave);
+    for (const r of G.rocks) {
+      if (r.warn > 0) { r.warn -= dt; continue; }
+      r.vy += g * dt; r.y += r.vy * dt;
+      const tip = r.y + ROCK_H;
+      if (h.inv <= 0 && !r.dead && Math.abs(r.x - h.x) < HERO_W * 0.26 + ROCK_W * 0.3 && tip > GROUND - HERO_H + 22 && r.y < GROUND - 10) {
+        r.dead = true; hurt(r);
+      } else if (tip >= GROUND + 4 && !r.dead) {
+        r.dead = true;
+        burst(r.x, GROUND - 6, 14, 'shard'); sfx.crash(); G.shake = Math.max(G.shake, 5);
+      }
+    }
+    G.rocks = G.rocks.filter((r) => !r.dead);
+
+    // gems on the floor
+    // only one gem at a time: the next appears after the last one is banked
+    if (G.gems.length || h.carry || G.flying.length) G.gemT = 0.5;
+    else if ((G.gemT -= dt) <= 0) spawnGem();
+    for (const c of G.gems) {
+      c.t += dt; c.pop = Math.min(1, c.pop + dt * 4);
+      if (c.vh !== 0 || c.h > 0) { c.vh -= 1100 * dt; c.h += c.vh * dt; if (c.h <= 0) { c.h = 0; c.vh = c.vh < -120 ? -c.vh * 0.35 : 0; } }
+      if (!h.carry && Math.abs(c.x - h.x) < reach() && c.h < 60) {
+        c.taken = true; h.carry = true; h.pickX = c.x; sfx.pick();
+        burst(c.x, GROUND - 30, 8, 'spark');
+      }
+    }
+    G.gems = G.gems.filter((c) => !c.taken);
+
+    // gems flying into the wall bank
+    for (const f of G.flying) {
+      f.t += dt * 2.2;
+      if (f.t >= 1 && !f.done) { f.done = true; G.banked++; burst(BANK_X, BANK_Y + BANK_H * 0.55, 14, 'spark'); G.flash = 0.5; }
+    }
+    G.flying = G.flying.filter((f) => !f.done);
+
+    // stash in the wall bank
+    if (h.carry && h.x < HOME_X) {
+      h.carry = false;
+      const value = 10 + Math.round((h.pickX - HOME_X) / 60) + G.streak * 2;
+      G.streak++; G.score += value; G.delivered++;
+      floatText(h.x + 30, GROUND - HERO_H - 30, '+' + value, '#ffd58e');
+      if (G.streak > 1) floatText(h.x + 30, GROUND - HERO_H - 70, 'Streak x' + G.streak, '#5ad6c4');
+      G.flying.push({ x0: h.x, y0: GROUND - HERO_H - 26, t: 0 }); sfx.bank();
+    }
+  }
+
+  function hurt(r) {
+    const h = G.hero;
+    // One hit on the head ends the run.
+    h.dead = true; G.shake = 18; G.streak = 0;
+    burst(h.x, GROUND - HERO_H, 16, 'shard'); sfx.hurt();
+    if (h.carry) { h.carry = false; G.gems.push({ x: Math.max(HOME_X + 40, h.x - h.dir * 40), h: 40, vh: 300, t: 0, pop: 1 }); }
+    floatText(h.x, GROUND - HERO_H - 30, 'Bonk!', '#e2513a');
+    gameOver();
+  }
+
+  // ---------- draw ----------
+  function drawHero(h, t, idle) {
+    const bob = idle || h.dead ? (h.dead ? 0 : Math.sin(t * 2.4) * 2.5) : Math.abs(Math.sin(t * 13)) * 9;
+    const tilt = idle ? 0 : 0.06;
+    const y = GROUND - HERO_H - bob;
+    ctx.save();
+    ctx.globalAlpha = 0.35; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(h.x, GROUND + 2, 46, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = h.inv > 0 && Math.floor(h.inv * 12) % 2 === 0 ? 0.35 : 1;
+    ctx.translate(h.x, y + HERO_H);
+    ctx.scale(h.dir, 1);
+    ctx.rotate(h.dead ? 0 : tilt);
+    if (h.dead) ctx.scale(1.25, 0.5);   // flattened by the rock
+    if (img.hero.complete && img.hero.naturalWidth) ctx.drawImage(img.hero, -HERO_W / 2, -HERO_H, HERO_W, HERO_H);
+    ctx.restore();
+    if (h.carry) drawGem(h.x + h.dir * 4, y - 26 + Math.sin(t * 13) * 2, 1.05, t);
+    if (h.dead) {
+      // dizzy stars circling the flattened caveman
+      const now = performance.now() / 1000;
+      for (let i = 0; i < 3; i++) {
+        const a = now * 4 + i * 2.1;
+        label('*', h.x + Math.cos(a) * 46, GROUND - HERO_H * 0.62 + Math.sin(a) * 12, 34, '#ffd58e', 'center');
+      }
+    }
+  }
+  function drawGem(x, y, s, t) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const rg = ctx.createRadialGradient(x, y, 2, x, y, 46 * s);
+    rg.addColorStop(0, `rgba(255,200,110,${0.45 + Math.sin(t * 5) * 0.12})`);
+    rg.addColorStop(1, 'rgba(255,150,40,0)');
+    ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(x, y, 46 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    if (img.crystal.naturalWidth) ctx.drawImage(img.crystal, x - GEM_W * s / 2, y - GEM_H * s / 2, GEM_W * s, GEM_H * s);
+  }
+  // A stone vault carved into the left cave wall. Banked gems stack up inside it.
+  function drawBank(count, t) {
+    const x = BANK_X - BANK_W / 2, y = BANK_Y;
+    ctx.save();
+    // rough stone rim
+    ctx.fillStyle = '#5b4a3c'; ctx.strokeStyle = '#120e0b'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.roundRect(x - 14, y - 14, BANK_W + 28, BANK_H + 28, 20); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#7a6552';
+    for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.arc(x - 6 + i * 27, y - 8 + (i % 2) * 3, 7, 0, Math.PI * 2); ctx.fill(); }
+    // dark hollow
+    const hg = ctx.createLinearGradient(0, y, 0, y + BANK_H);
+    hg.addColorStop(0, '#0b0806'); hg.addColorStop(1, '#241a13');
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.roundRect(x, y, BANK_W, BANK_H, 12); ctx.fill();
+    ctx.lineWidth = 3; ctx.stroke();
+    // stacked gems, bottom row first
+    ctx.beginPath(); ctx.roundRect(x, y, BANK_W, BANK_H, 12); ctx.clip();
+    const shown = Math.min(count, 28), perRow = 7, gw = 20, gh = 26;
+    for (let i = 0; i < shown; i++) {
+      const row = Math.floor(i / perRow), col = i % perRow;
+      const gx = x + 12 + col * gw + (row % 2) * 8, gy = y + BANK_H - gh - 6 - row * (gh - 6);
+      if (img.crystal.naturalWidth) ctx.drawImage(img.crystal, gx, gy, gw, gh);
+    }
+    if (shown) {
+      ctx.globalCompositeOperation = 'lighter';
+      const gl = ctx.createRadialGradient(BANK_X, y + BANK_H, 4, BANK_X, y + BANK_H, BANK_W * 0.8);
+      gl.addColorStop(0, `rgba(255,170,70,${0.18 + Math.min(shown, 20) * 0.012 + Math.sin(t * 3) * 0.03})`); gl.addColorStop(1, 'rgba(255,140,40,0)');
+      ctx.fillStyle = gl; ctx.fillRect(x, y, BANK_W, BANK_H);
+    }
+    ctx.restore();
+    // carved plaque
+    ctx.fillStyle = '#5b4a3c'; ctx.strokeStyle = '#120e0b'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.roundRect(BANK_X - 58, y + BANK_H + 4, 116, 38, 10); ctx.fill(); ctx.stroke();
+    label('BANK ' + count, BANK_X, y + BANK_H + 24, 24, '#ffd58e', 'center');
+  }
+
+  function label(text, x, y, size, color, align = 'left') {
+    ctx.font = `${size}px "Lilita One", "Arial Black", Impact, sans-serif`;
+    ctx.textAlign = align; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(4, size / 6); ctx.strokeStyle = '#120e0b';
+    ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y);
+  }
+
+  function draw(now) {
+    const t = now / 1000;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.save();
+    if (G && G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+
+    if (img.bg.naturalWidth) ctx.drawImage(img.bg, -8, -8, W + 16, H + 16);
+    else { ctx.fillStyle = '#1b1612'; ctx.fillRect(0, 0, W, H); }
+
+    // campfire light
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const fl = 0.22 + Math.sin(t * 9) * 0.03 + Math.sin(t * 23) * 0.02 + (G ? G.flash * 0.4 : 0);
+    const cg = ctx.createRadialGradient(150, 600, 10, 150, 600, 300);
+    cg.addColorStop(0, `rgba(255,160,60,${fl})`); cg.addColorStop(1, 'rgba(255,120,30,0)');
+    ctx.fillStyle = cg; ctx.fillRect(0, 300, 460, 420);
+    ctx.restore();
+
+    drawBank(G ? G.banked : save.bank, t);
+
+    // dust motes
+    ctx.fillStyle = 'rgba(255,225,170,0.35)';
+    for (const m of motes) { ctx.beginPath(); ctx.arc(m.x + Math.sin(m.p) * 6, m.y, m.s, 0, Math.PI * 2); ctx.fill(); }
+
+    if (G) {
+      const h = G.hero;
+      // camp marker when carrying
+      if (h.carry && mode === 'play') {
+        const a = 0.55 + Math.sin(t * 8) * 0.35;
+        ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#ffd58e';
+        for (let i = 0; i < 3; i++) {
+          const x = HOME_X + 20 + i * 26 - ((t * 60) % 26);
+          ctx.beginPath(); ctx.moveTo(x, GROUND - 40); ctx.lineTo(x + 14, GROUND - 52); ctx.lineTo(x + 14, GROUND - 28); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      }
+      // warnings and shadows
+      for (const r of G.rocks) {
+        const p = r.warn > 0 ? 1 - r.warn / r.max : 1;
+        const fall = r.warn > 0 ? 0 : Math.min(1, (r.y + ROCK_H) / GROUND);
+        ctx.fillStyle = `rgba(0,0,0,${0.18 + 0.35 * Math.max(p * 0.6, fall)})`;
+        ctx.beginPath(); ctx.ellipse(r.x, GROUND + 2, 14 + 26 * Math.max(p * 0.6, fall), 6, 0, 0, Math.PI * 2); ctx.fill();
+        if (r.warn > 0) {
+          // the rock cracks out of the ceiling and hangs there, shaking harder until it drops
+          const appear = Math.min(1, (r.max - r.warn) / 0.12);
+          ctx.fillStyle = 'rgba(230,190,130,0.85)';
+          for (let i = 0; i < 4; i++) { const yy = ((t * 300 + i * 45) % 180) + 20; ctx.fillRect(r.x - 14 + i * 9 + Math.sin(t * 30 + i) * 2, yy, 3, 3); }
+          ctx.save(); ctx.translate(r.x + Math.sin(t * 70) * (1 + 4 * p), r.y - (1 - appear) * ROCK_H); ctx.rotate(r.rot + Math.sin(t * 50) * 0.04 * p);
+          ctx.shadowColor = 'rgba(10,6,4,0.95)'; ctx.shadowBlur = 14;
+          if (img.rock.naturalWidth) ctx.drawImage(img.rock, -ROCK_W / 2, 0, ROCK_W, ROCK_H);
+          ctx.restore();
+        }
+      }
+      // gems
+      for (const c of G.gems) drawGem(c.x, GROUND - GEM_H / 2 - 2 - c.h + Math.sin(c.t * 4) * 2, 0.4 + 0.6 * c.pop, t + c.x);
+      drawHero(h, G.hero.run, false);
+      // falling rocks
+      for (const r of G.rocks) {
+        if (r.warn > 0) continue;
+        ctx.save(); ctx.translate(r.x, r.y); ctx.rotate(r.rot);
+        ctx.shadowColor = 'rgba(10,6,4,0.95)'; ctx.shadowBlur = 14;
+        if (img.rock.naturalWidth) ctx.drawImage(img.rock, -ROCK_W / 2, 0, ROCK_W, ROCK_H);
+        ctx.restore();
+      }
+      // particles
+      for (const p of G.parts) {
+        const a = 1 - p.t / p.life;
+        if (p.kind === 'spark') { ctx.fillStyle = `rgba(255,200,110,${a})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill(); }
+        else if (p.kind === 'dust') { ctx.fillStyle = `rgba(200,170,130,${a * 0.6})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.s * 0.8, 0, Math.PI * 2); ctx.fill(); }
+        else { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r + p.t * 8); ctx.fillStyle = `rgba(176,120,58,${a})`; ctx.strokeStyle = `rgba(18,14,11,${a})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-p.s / 2, p.s / 2); ctx.lineTo(0, -p.s / 2); ctx.lineTo(p.s / 2, p.s / 2); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+      }
+      for (const f of G.flying) {
+        const e = Math.min(1, f.t), x = f.x0 + (BANK_X - f.x0) * e, y = f.y0 + (BANK_Y + BANK_H * 0.5 - f.y0) * e - Math.sin(e * Math.PI) * 120;
+        drawGem(x, y, 1 - e * 0.35, t);
+      }
+      for (const tx of G.texts) { ctx.globalAlpha = 1 - tx.t / 1.2; label(tx.text, tx.x, tx.y - tx.t * 60, 34, tx.color, 'center'); ctx.globalAlpha = 1; }
+    } else {
+      drawHero(idleHero, idleHero.run, true);
+    }
+    ctx.restore();
+
+    if (G) drawHud(t);
+  }
+
+  function drawHud(t) {
+
+    // haul and wave, centred
+    label(String(G.score), W / 2, 44, 50, '#ffd58e', 'center');
+    label('WAVE ' + G.wave, W / 2, 86, 22, '#fff1da', 'center');
+    ctx.fillStyle = 'rgba(18,14,11,0.7)'; ctx.fillRect(W / 2 - 60, 102, 120, 7);
+    ctx.fillStyle = '#5ad6c4'; ctx.fillRect(W / 2 - 60, 102, 120 * (G.waveT / WAVE_LEN), 7);
+
+    // run clock
+    label(clock(G.t), W - 30, H - 34, 30, '#fff1da', 'right');
+
+    if (G.banner.t > 0 && mode === 'play') {
+      const a = Math.min(1, G.banner.t * 2);
+      const pop = 1 + Math.max(0, G.banner.t - 1.9) * 2;
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, H * 0.36); ctx.scale(pop, pop);
+      label(G.banner.text, 0, 0, 88, '#f39a35', 'center');
+      if (G.wave === 1) label('Tap to turn around', 0, 66, 30, '#fff1da', 'center');
+      ctx.restore();
+    }
+    if (mode === 'countdown') {
+      const n = Math.max(1, Math.ceil(countdown));
+      const f = countdown - Math.floor(countdown);
+      ctx.save(); ctx.translate(W / 2, H * 0.42); const s = 1 + f * 0.5; ctx.scale(s, s);
+      label(String(n), 0, 0, 140, '#ffd58e', 'center'); ctx.restore();
+    }
+  }
+
+  // ---------- loop ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    update(dt); draw(now);
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  Promise.all([
+    load('bg', 'assets/bg.jpg'), load('hero', 'assets/hero.png'),
+    load('crystal', 'assets/crystal.png'), load('rock', 'assets/rock.png'),
+    document.fonts ? document.fonts.load('40px "Lilita One"').catch(() => {}) : null,
+  ]).then(() => { goTitle(); });
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
