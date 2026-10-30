@@ -428,7 +428,7 @@ p { margin: 0; line-height: 1.45; }
   window.addEventListener('resize', resize);
 
   // ---------- state ----------
-  let mode = 'loading';   // loading, title, play, paused, countdown, over, shop
+  let mode = 'loading';   // loading, title, howto, play, paused, countdown, over, shop
   let G = null;
   let countdown = 0, countLast = 0;
   const motes = Array.from({ length: 30 }, () => ({ x: Math.random() * W, y: Math.random() * H, s: 1 + Math.random() * 2.2, v: 8 + Math.random() * 18, p: Math.random() * 6 }));
@@ -445,7 +445,7 @@ p { margin: 0; line-height: 1.45; }
       score: 0, delivered: 0, streak: 0,
       hero: { x: 300, dir: 1, carry: false, pickX: 0, inv: 0, run: 0 },
       rocks: [], gems: [], parts: [], texts: [], flying: [], banked: save.bank, gemT: 0.6,
-      shake: 0, banner: { text: 'Wave 1', sub: 'Hold left or right to run', t: 2.4 }, flash: 0,
+      shake: 0, banner: { text: 'GO!', sub: 'Wave 1', t: 2.2 }, flash: 0,
       gemClock: 0, clockOn: false, slow: 0, slowGem: null, slowT: 12, pulse: 0, dustT: 0,
     };
   }
@@ -534,7 +534,10 @@ p { margin: 0; line-height: 1.45; }
     Music.play('title');
     show('title');
   }
-  function startGame() { held.length = 0; newRun(); mode = 'play'; show(null); sfx.wave(); Music.play('run'); }
+  function startGame() { held.length = 0; newRun(); mode = 'howto'; howtoT = 0; show(null); Music.play('title'); }
+  // the how-to card holds the run still until the player holds left or right
+  let howtoT = 0;
+  function beginRun() { mode = 'play'; show(null); sfx.wave(); sfx.go(); Music.play('run'); }
   function pauseGame() { if (mode !== 'play' && mode !== 'countdown') return; mode = 'paused'; Music.stop(); show('pause'); $('resumeBtn').focus(); }
   function resumeGame() { mode = 'countdown'; countdown = 3; countLast = 4; show(null); }
   function gameOver() {
@@ -593,6 +596,7 @@ p { margin: 0; line-height: 1.45; }
     for (const m of motes) { m.y += m.v * dt; m.p += dt; if (m.y > GROUND) { m.y = -5; m.x = Math.random() * W; } }
 
     if (mode === 'title' || mode === 'shop') { idleHero.run += dt; return; }
+    if (mode === 'howto') { howtoT += dt; if (G) G.hero.run += dt; if (steer() !== 0 && howtoT > 0.25) beginRun(); return; }
     if (mode === 'countdown') {
       countdown -= dt;
       const n = Math.ceil(countdown);
@@ -951,11 +955,12 @@ p { margin: 0; line-height: 1.45; }
     }
 
     // touch hints: an arrow in each bottom corner, lit while that side is held
-    if (mode === 'play' || mode === 'countdown') {
-      const side = steer();
+    if (mode === 'play' || mode === 'countdown' || mode === 'howto') {
+      const side = steer(), pulse = mode === 'howto' ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
       [[-1, 92], [1, W - 92]].forEach(([d, x]) => {
-        const on = side === d, y = H - 62;
+        const on = side === d || pulse > 0.5, y = H - 62;
         ctx.save(); ctx.globalAlpha = on ? 0.95 : 0.4;
+        if (pulse) { ctx.translate(x, y); ctx.scale(1 + 0.12 * pulse, 1 + 0.12 * pulse); ctx.translate(-x, -y); }
         ctx.fillStyle = on ? '#f39a35' : 'rgba(18,14,11,0.55)';
         ctx.strokeStyle = '#120e0b'; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.arc(x, y, 44, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -973,12 +978,47 @@ p { margin: 0; line-height: 1.45; }
       if (G.banner.sub) label(G.banner.sub, 0, 72, 34, G.banner.subColor || '#fff1da', 'center');
       ctx.restore();
     }
+    if (mode === 'howto') drawHowTo(t);
     if (mode === 'countdown') {
       const n = Math.max(1, Math.ceil(countdown));
       const f = countdown - Math.floor(countdown);
       ctx.save(); ctx.translate(W / 2, H * 0.45); const s = 1 + f * 0.5; ctx.scale(s, s);
       label(String(n), 0, 0, 140, '#ffd58e', 'center'); ctx.restore();
     }
+  }
+
+  // How-to-play card shown at the start of every run.
+  function drawHowTo(t) {
+    ctx.fillStyle = 'rgba(14,10,8,0.62)'; ctx.fillRect(0, 0, W, H);
+    const cx = 56, cy = 300, cw = W - 112, ch = 640;
+    ctx.save();
+    ctx.fillStyle = 'rgba(44,36,29,0.96)'; ctx.strokeStyle = '#120e0b'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.roundRect(cx, cy, cw, ch, 28); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    label('HOW TO PLAY', W / 2, cy + 62, 54, '#ffd58e', 'center');
+    const rows = [
+      ['arrows', 'Hold LEFT or RIGHT', 'to run and dodge'],
+      ['gem', 'Grab the gem', 'and run it to the BANK'],
+      ['rock', 'Watch the shadows', 'one rock = game over'],
+      ['blue', 'Bank fast for a bonus', 'blue gems slow time'],
+    ];
+    rows.forEach(([icon, a, b], i) => {
+      const y = cy + 160 + i * 112, ix = cx + 78;
+      ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.roundRect(cx + 24, y - 48, cw - 48, 96, 18); ctx.fill();
+      if (icon === 'arrows') {
+        [-1, 1].forEach((d) => { const ax = ix + d * 22; ctx.fillStyle = '#f39a35'; ctx.beginPath(); ctx.moveTo(ax + d * 16, y); ctx.lineTo(ax - d * 8, y - 18); ctx.lineTo(ax - d * 8, y + 18); ctx.closePath(); ctx.fill(); });
+      } else if (icon === 'gem') drawGem(ix, y, 0.95, t);
+      else if (icon === 'blue') drawGem(ix, y, 0.95, t, true);
+      else if (img.rock.naturalWidth) { ctx.save(); ctx.translate(ix, y); ctx.rotate(0); ctx.drawImage(img.rock, -12, -40, 24, 80); ctx.restore(); }
+      ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.font = '36px "Lilita One", "Arial Black", Impact, sans-serif'; ctx.fillStyle = '#fff1da'; ctx.fillText(a, cx + 140, y - 16);
+      ctx.font = '800 26px "Nunito", "Trebuchet MS", sans-serif'; ctx.fillStyle = '#c4ae92'; ctx.fillText(b, cx + 140, y + 22);
+      ctx.restore();
+    });
+    const a = 0.65 + 0.35 * Math.sin(t * 5);
+    ctx.save(); ctx.globalAlpha = a;
+    label('Hold LEFT or RIGHT to start', W / 2, cy + ch - 46, 36, '#f39a35', 'center');
+    ctx.restore();
   }
 
   // ---------- loop ----------

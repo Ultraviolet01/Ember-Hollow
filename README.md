@@ -33,6 +33,7 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 - AI tools used: Higgsfield (Z Image for the hero, gem, rock and cave art, plus background removal) and Claude (game code).
 
 ## How to play
+- Every run opens on a How to play card. The game waits there, with no rocks falling and the clock stopped, until you hold left or right. Then GO! and the run starts.
 - Hold the left half of the screen to run left, the right half to run right. Let go and he stops.
 - On a keyboard, hold the Left/Right arrow keys or A/D.
 - One gem appears on the cave floor at a time. Run over it to pick it up. The next one only appears after you bank it.
