@@ -7,7 +7,7 @@ An original 2D cave arcade game. Grab the gems on the cave floor, stash them in 
 Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 
 ### How Ember Hollow fits the theme: Speed
-- **Speed is rewarded:** every gem starts a speed-bonus clock when it appears. Bank it within 5 seconds for up to +30 points ("Lightning!" under 2 seconds, "Quick!" after that).
+- **Speed is rewarded:** picking up a gem starts a speed-bonus clock, so every gem run is a sprint home. Bank it within 5 seconds for up to +30 points ("Lightning!" under 2.5 seconds, "Quick!" after that).
 - **Speed escalates:** every wave speeds up the falling rocks, the caveman and the music, with a "SPEED UP!" flash and screen pulse.
 - **Speed can be relieved:** a rare blue gem slows every falling rock for 4 seconds while the caveman keeps full speed.
 - **Speed is visible:** dust and streaks trail the running caveman, and speed lines trail every falling rock.
@@ -44,7 +44,7 @@ Made for [Slapjam #2](https://itch.io/jam/slapjam-ai-2).
 
 ## Scoring
 - Each banked gem is worth 10 points, plus more the further from the bank you grabbed it.
-- Speed bonus: a ring around the gem drains over 5 seconds from the moment it appears. Bank it before the ring empties for up to +30 more. The live bonus shows under the wave bar as "RUSH +N".
+- Speed bonus: when you pick up a gem, a ring around it starts draining over 5 seconds. Bank it before the ring empties for up to +30 more ("Lightning!" under 2.5 seconds, "Quick!" after that). The live bonus shows under the wave bar as "RUSH +N".
 - Banking in a row adds a streak bonus of +2 per streak level.
 
 ## Sound

@@ -210,7 +210,8 @@ p { margin: 0; line-height: 1.45; }
   const ROCK_W = 50, ROCK_H = 166;
   const GEM_W = 38, GEM_H = 49;
   const WAVE_LEN = 24;
-  const RUSH = 5;               // seconds: bank a gem inside this window for a speed bonus
+  const RUSH = 5;               // seconds from pickup: bank a gem inside this window for a speed bonus
+  const LIGHTNING = 2.5;        // bank within this many seconds of pickup for the top bonus
   const RUSH_MAX = 30;          // speed bonus for an instant bank, shrinking to 0 at RUSH
   const SLOW_SCALE = 0.35;      // how fast rocks move while slow time is on
   const SLOW_LEN = 4;           // seconds of slow time from one blue gem
@@ -473,7 +474,6 @@ p { margin: 0; line-height: 1.45; }
     while (tries < 10 && (Math.abs(x - G.hero.x) < 140 || G.gems.some((c) => Math.abs(c.x - x) < 120)));
     G.gems.push({ x, h: 0, vh: 0, t: 0, pop: 0 });
     burst(x, GROUND - 24, 6, 'spark');
-    G.gemClock = 0; G.clockOn = true;   // the speed-bonus clock starts the moment a gem appears
   }
   const rushBonus = () => (G.clockOn ? Math.max(0, Math.round(RUSH_MAX * (1 - G.gemClock / RUSH))) : 0);
 
@@ -676,6 +676,7 @@ p { margin: 0; line-height: 1.45; }
       if (c.vh !== 0 || c.h > 0) { c.vh -= 1100 * dt; c.h += c.vh * dt; if (c.h <= 0) { c.h = 0; c.vh = c.vh < -120 ? -c.vh * 0.35 : 0; } }
       if (!h.carry && Math.abs(c.x - h.x) < reach() && c.h < 60) {
         c.taken = true; h.carry = true; h.pickX = c.x; sfx.pick();
+        G.gemClock = 0; G.clockOn = true;   // the speed-bonus clock starts when you pick the gem up: sprint home
         burst(c.x, GROUND - 30, 8, 'spark');
       }
     }
@@ -704,7 +705,7 @@ p { margin: 0; line-height: 1.45; }
     // stash in the wall bank
     if (h.carry && h.x < HOME_X) {
       h.carry = false;
-      const rush = rushBonus(), fast = G.gemClock < 2;
+      const rush = rushBonus(), fast = G.gemClock < LIGHTNING;
       G.clockOn = false;
       const value = 10 + Math.round((h.pickX - HOME_X) / 60) + G.streak * 2 + rush;
       G.streak++; G.score += value; G.delivered++;
@@ -719,7 +720,7 @@ p { margin: 0; line-height: 1.45; }
   function hurt(r) {
     const h = G.hero;
     // One hit on the head ends the run.
-    h.dead = true; G.shake = 18; G.streak = 0;
+    h.dead = true; G.shake = 18; G.streak = 0; G.clockOn = false;
     burst(h.x, GROUND - HERO_H, 16, 'shard'); sfx.bonk();
     if (h.carry) { h.carry = false; G.gems.push({ x: Math.max(HOME_X + 40, h.x - h.dir * 40), h: 40, vh: 300, t: 0, pop: 1 }); }
     floatText(h.x, GROUND - HERO_H - 30, 'Bonk!', '#e2513a');
@@ -879,7 +880,7 @@ p { margin: 0; line-height: 1.45; }
       // gems
       for (const c of G.gems) {
         const gy = GROUND - GEM_H / 2 - 2 - c.h + Math.sin(c.t * 4) * 2;
-        drawRush(c.x, gy); drawGem(c.x, gy, 0.4 + 0.6 * c.pop, t + c.x);
+        drawGem(c.x, gy, 0.4 + 0.6 * c.pop, t + c.x);
       }
       if (G.slowGem) {
         const sg = G.slowGem;

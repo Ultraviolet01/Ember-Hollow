@@ -14,7 +14,7 @@ Every wave the cave crumbles faster. Grab gems, bank them quick, and don't get f
 
 Ember Hollow is a one-thumb arcade game about speed:
 
-- **Speed is your score.** Every gem starts a countdown the moment it appears. Bank it fast for a Lightning bonus of up to +30 points; dawdle and the bonus drains away.
+- **Speed is your score.** The moment you grab a gem, a countdown starts. Sprint it home for a Lightning bonus of up to +30 points; dawdle and the bonus drains away.
 - **Speed is the danger.** Each wave makes the rocks fall faster, drop more often and give less warning. The caveman and the music speed up with them.
 - **Slow time is your relief.** Grab a rare blue gem to slow every falling rock for 4 seconds while you keep running at full speed.
 - **One hit and you're flattened.** Watch the shadows on the floor; they show where a rock is about to land.
