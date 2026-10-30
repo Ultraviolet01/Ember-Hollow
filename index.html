@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
 <style>
-/* Layout: one letterboxed 16:9 canvas stage; menus are stone tablets laid over the whole screen */
+/* Layout: one letterboxed 9:16 portrait canvas stage (720 x 1280); menus are stone tablets laid over the whole screen */
 :root {
   --stone: #1b1612;
   --slab: #2c241d;
@@ -42,12 +42,12 @@ body {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-#stage { position: relative; width: 640px; height: 360px; max-width: 100%; }
+#stage { position: relative; width: 360px; height: 640px; max-width: 100%; }
 #game { display: block; width: 100%; height: 100%; border-radius: 14px; background: #0d0a08; cursor: pointer; }
 
 #pauseBtn {
-  position: absolute; top: 2.2%; right: 1.6%;
-  width: clamp(34px, 4.2%, 54px); aspect-ratio: 1; max-width: 100%;
+  position: absolute; top: 1.6%; right: 3%;
+  width: clamp(36px, 8%, 56px); aspect-ratio: 1; max-width: 100%;
   border-radius: 12px; border: 3px solid var(--slab-edge);
   background: var(--slab); color: var(--cream);
   display: grid; place-items: center; cursor: pointer;
@@ -81,15 +81,14 @@ p { margin: 0; line-height: 1.45; }
 .sub { color: var(--muted); font-weight: 600; font-size: clamp(14px, 1.5vw, 17px); }
 
 /* Title screen sits on the right, leaving the hero and campfire visible */
-#title { place-items: center end; background: transparent; }
-#title .tablet { width: min(400px, 100%); margin-right: clamp(0px, 4vw, 60px); background: rgba(44, 36, 29, 0.92); }
+#title { place-items: end center; background: transparent; }
+#title .tablet { width: min(380px, 100%); margin-bottom: 4vh; background: rgba(44, 36, 29, 0.92); }
 .logo {
-  font-size: clamp(44px, 7vw, 84px); line-height: 0.88;
+  font-size: clamp(44px, 12vw, 72px); line-height: 0.88;
   color: var(--ember);
   text-shadow: 0 5px 0 var(--ember-deep), 0 10px 0 var(--slab-edge);
 }
 .logo span { display: block; color: var(--glow); }
-@media (max-width: 640px) { #title { place-items: center; } #title .tablet { margin-right: 0; } }
 
 .btn {
   font-family: var(--display); font-size: clamp(20px, 2.3vw, 26px); letter-spacing: 0.04em;
@@ -150,7 +149,7 @@ p { margin: 0; line-height: 1.45; }
     </div>
     <div class="stats">
       <div class="stat"><small>Best haul</small><b id="tBest">0</b></div>
-      <div class="stat"><small>Gems saved</small><b id="tBank">0</b></div>
+      <div class="stat"><small>Best wave</small><b id="tWave">0</b></div>
     </div>
     <p class="tip">Tap or press Space to turn around</p>
   </div>
@@ -180,7 +179,10 @@ p { margin: 0; line-height: 1.45; }
   <div class="tablet">
     <h2>Flattened!</h2>
     <span class="chip" id="newBest" hidden>New best haul</span>
+    <span class="chip" id="newWave" hidden>New best wave</span>
     <div class="stats">
+      <div class="stat hot"><small>Wave</small><b id="oWaveN">1</b></div>
+      <div class="stat"><small>Best wave</small><b id="oBestWave">1</b></div>
       <div class="stat hot"><small>Haul</small><b id="oScore">0</b></div>
       <div class="stat"><small>Best</small><b id="oBest">0</b></div>
       <div class="stat"><small>Gems banked</small><b id="oGems">0</b></div>
@@ -197,12 +199,12 @@ p { margin: 0; line-height: 1.45; }
 <script>
 (() => {
   // World is laid out in a fixed 1280 x 720 space and scaled to the stage.
-  const W = 1280, H = 720;
-  const GROUND = 664;          // where feet touch the cave floor
-  const HOME_X = 225;          // wall bank edge: carry a gem past this to stash it
-  const BANK_X = 112, BANK_Y = 250, BANK_W = 150, BANK_H = 118; // stone vault in the left wall
-  const LEFT = 90, RIGHT = 1190;
-  const HERO_H = 140, HERO_W = 126;
+  const W = 720, H = 1280;
+  const GROUND = 1150;         // where feet touch the cave floor
+  const HOME_X = 170;          // wall bank edge: carry a gem past this to stash it
+  const BANK_X = 104, BANK_Y = 610, BANK_W = 150, BANK_H = 118; // stone vault in the left wall
+  const LEFT = 60, RIGHT = 662;
+  const HERO_H = 132, HERO_W = 119;
   const ROCK_W = 50, ROCK_H = 166;
   const GEM_W = 38, GEM_H = 49;
   const WAVE_LEN = 24;
@@ -213,7 +215,7 @@ p { margin: 0; line-height: 1.45; }
 
   // ---------- save data ----------
   const SAVE_KEY = 'ember-hollow-v1';
-  const save = { best: 0, bank: 0, sound: true, up: { sense: 0, feet: 0, reach: 0 } };
+  const save = { best: 0, bestWave: 0, bank: 0, sound: true, up: { sense: 0, feet: 0, reach: 0 } };
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (s) { Object.assign(save, s); save.up = Object.assign({ sense: 0, feet: 0, reach: 0 }, s.up); }
@@ -274,9 +276,9 @@ p { margin: 0; line-height: 1.45; }
     const cs = getComputedStyle(document.body);
     const aw = document.body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const ah = document.body.clientHeight;
-    let w = Math.min(aw, ah * 16 / 9);
-    w = Math.max(200, Math.floor(w));
-    const h = Math.floor(w * 9 / 16);
+    let w = Math.min(aw, ah * 9 / 16);
+    w = Math.max(180, Math.floor(w));
+    const h = Math.floor(w * 16 / 9);
     stage.style.width = w + 'px'; stage.style.height = h + 'px';
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
@@ -288,18 +290,19 @@ p { margin: 0; line-height: 1.45; }
   let mode = 'loading';   // loading, title, play, paused, countdown, over, shop
   let G = null;
   let countdown = 0, countLast = 0;
-  const motes = Array.from({ length: 34 }, () => ({ x: Math.random() * W, y: Math.random() * H, s: 1 + Math.random() * 2.2, v: 8 + Math.random() * 18, p: Math.random() * 6 }));
-  const idleHero = { x: 330, dir: 1, run: 0, inv: 0, carry: false };
+  const motes = Array.from({ length: 30 }, () => ({ x: Math.random() * W, y: Math.random() * H, s: 1 + Math.random() * 2.2, v: 8 + Math.random() * 18, p: Math.random() * 6 }));
+  const idleHero = { x: 300, dir: 1, run: 0, inv: 0, carry: false };
 
   const waveBoost = () => (G ? 1 + 0.07 * Math.min(G.wave - 1, 10) : 1);
-  const heroSpeed = () => 320 * (1 + 0.08 * save.up.feet) * waveBoost();
+  const heroSpeed = () => 250 * (1 + 0.08 * save.up.feet) * waveBoost();
   const reach = () => 40 + 18 * save.up.reach;
 
   function newRun() {
     G = {
+      startBestWave: save.bestWave,
       t: 0, wave: 1, waveT: 0, spawnT: 1.4,
       score: 0, delivered: 0, streak: 0,
-      hero: { x: 330, dir: 1, carry: false, pickX: 0, inv: 0, run: 0 },
+      hero: { x: 300, dir: 1, carry: false, pickX: 0, inv: 0, run: 0 },
       rocks: [], gems: [], parts: [], texts: [], flying: [], banked: 0, gemT: 0.6,
       shake: 0, banner: { text: 'Wave 1', t: 2.2 }, flash: 0,
     };
@@ -309,7 +312,7 @@ p { margin: 0; line-height: 1.45; }
   const warnTime = (w) => Math.max(0.4, 0.75 - 0.04 * (w - 1)) * (1 + 0.15 * save.up.sense);
   const gravity = (w) => 2800 + 320 * (w - 1);
   const dropSpeed = (w) => 450 + 50 * (w - 1);   // rocks leave the ceiling already moving
-  const spawnGap = (w) => Math.max(0.32, 1.1 - 0.1 * (w - 1)) * (0.75 + Math.random() * 0.5);
+  const spawnGap = (w) => Math.max(0.36, 1.2 - 0.1 * (w - 1)) * (0.75 + Math.random() * 0.5);
   const doubleChance = (w) => (w < 2 ? 0 : Math.min(0.55, (w - 1) * 0.12));
 
   function spawnRock() {
@@ -317,14 +320,14 @@ p { margin: 0; line-height: 1.45; }
     do {
       x = HOME_X + 30 + Math.random() * (RIGHT - HOME_X - 30);
       tries++;
-    } while (tries < 8 && G.rocks.some((r) => Math.abs(r.x - x) < 70));
+    } while (tries < 8 && G.rocks.some((r) => Math.abs(r.x - x) < 60));
     G.rocks.push({ x, y: HANG_Y, vy: dropSpeed(G.wave), warn: warnTime(G.wave), max: warnTime(G.wave), rot: (Math.random() - 0.5) * 0.16 });
   }
 
   function spawnGem() {
     let x, tries = 0;
-    do { x = HOME_X + 140 + Math.random() * (RIGHT - HOME_X - 160); tries++; }
-    while (tries < 10 && (Math.abs(x - G.hero.x) < 160 || G.gems.some((c) => Math.abs(c.x - x) < 120)));
+    do { x = HOME_X + 110 + Math.random() * (RIGHT - HOME_X - 120); tries++; }
+    while (tries < 10 && (Math.abs(x - G.hero.x) < 140 || G.gems.some((c) => Math.abs(c.x - x) < 120)));
     G.gems.push({ x, h: 0, vh: 0, t: 0, pop: 0 });
     burst(x, GROUND - 24, 6, 'spark');
   }
@@ -364,7 +367,7 @@ p { margin: 0; line-height: 1.45; }
 
   function goTitle() {
     mode = 'title'; G = null;
-    $('tBest').textContent = save.best; $('tBank').textContent = save.bank;
+    $('tBest').textContent = save.best; $('tWave').textContent = save.bestWave || '-';
     $('soundBtn').textContent = save.sound ? 'Sound on' : 'Sound off';
     show('title');
   }
@@ -374,13 +377,16 @@ p { margin: 0; line-height: 1.45; }
   function gameOver() {
     mode = 'over';
     const isBest = G.score > save.best;
+    const isBestWave = G.wave > G.startBestWave;
     save.best = Math.max(save.best, G.score);
+    save.bestWave = Math.max(save.bestWave, G.wave);
     save.bank += G.delivered;
     persist();
     $('oScore').textContent = G.score; $('oBest').textContent = save.best;
     $('oGems').textContent = '+' + G.delivered; $('oTime').textContent = clock(G.t);
-    $('oWave').textContent = `You reached wave ${G.wave}. Banked gems carry over to the Trader.`;
-    $('newBest').hidden = !isBest;
+    $('oWave').textContent = 'Banked gems carry over to the Trader.';
+    $('newBest').hidden = !isBest; $('newWave').hidden = !isBestWave;
+    $('oWaveN').textContent = G.wave; $('oBestWave').textContent = save.bestWave;
     setTimeout(() => { if (mode === 'over') { show('over'); $('againBtn').focus(); } }, 900);
     $('pauseBtn').hidden = true;
     sfx.lose();
@@ -441,7 +447,10 @@ p { margin: 0; line-height: 1.45; }
 
     // waves
     G.waveT += dt;
-    if (G.waveT >= WAVE_LEN) { G.waveT = 0; G.wave++; G.banner = { text: 'Wave ' + G.wave, t: 2.2 }; sfx.wave(); }
+    if (G.waveT >= WAVE_LEN) {
+      G.waveT = 0; G.wave++; G.banner = { text: 'Wave ' + G.wave, t: 2.2 }; sfx.wave();
+      if (G.wave > save.bestWave) { save.bestWave = G.wave; persist(); }   // kept on this device even if the tab closes mid-run
+    }
 
     // spawning
     G.spawnT -= dt;
@@ -598,15 +607,15 @@ p { margin: 0; line-height: 1.45; }
     ctx.save();
     if (G && G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
 
-    if (img.bg.naturalWidth) ctx.drawImage(img.bg, -8, -8, W + 16, H + 16);
+    if (img.bg.naturalWidth) ctx.drawImage(img.bg, -10, -10, W + 20, H + 20);
     else { ctx.fillStyle = '#1b1612'; ctx.fillRect(0, 0, W, H); }
 
     // campfire light
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const fl = 0.22 + Math.sin(t * 9) * 0.03 + Math.sin(t * 23) * 0.02 + (G ? G.flash * 0.4 : 0);
-    const cg = ctx.createRadialGradient(150, 600, 10, 150, 600, 300);
+    const cg = ctx.createRadialGradient(160, 930, 10, 160, 930, 300);
     cg.addColorStop(0, `rgba(255,160,60,${fl})`); cg.addColorStop(1, 'rgba(255,120,30,0)');
-    ctx.fillStyle = cg; ctx.fillRect(0, 300, 460, 420);
+    ctx.fillStyle = cg; ctx.fillRect(0, 630, 460, 600);
     ctx.restore();
 
     drawBank(G ? G.banked : save.bank, t);
@@ -678,26 +687,27 @@ p { margin: 0; line-height: 1.45; }
   function drawHud(t) {
 
     // haul and wave, centred
-    label(String(G.score), W / 2, 44, 50, '#ffd58e', 'center');
-    label('WAVE ' + G.wave, W / 2, 86, 22, '#fff1da', 'center');
-    ctx.fillStyle = 'rgba(18,14,11,0.7)'; ctx.fillRect(W / 2 - 60, 102, 120, 7);
-    ctx.fillStyle = '#5ad6c4'; ctx.fillRect(W / 2 - 60, 102, 120 * (G.waveT / WAVE_LEN), 7);
+    label(String(G.score), W / 2, 228, 64, '#ffd58e', 'center');
+    label('WAVE ' + G.wave, W / 2, 280, 28, '#fff1da', 'center');
+    ctx.fillStyle = 'rgba(18,14,11,0.7)'; ctx.fillRect(W / 2 - 80, 302, 160, 9);
+    ctx.fillStyle = '#5ad6c4'; ctx.fillRect(W / 2 - 80, 302, 160 * (G.waveT / WAVE_LEN), 9);
+    label('BEST WAVE ' + Math.max(save.bestWave, G.wave), 26, 46, 24, '#c4ae92');
 
     // run clock
-    label(clock(G.t), W - 30, H - 34, 30, '#fff1da', 'right');
+    label(clock(G.t), W - 30, H - 50, 34, '#fff1da', 'right');
 
     if (G.banner.t > 0 && mode === 'play') {
       const a = Math.min(1, G.banner.t * 2);
       const pop = 1 + Math.max(0, G.banner.t - 1.9) * 2;
-      ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, H * 0.36); ctx.scale(pop, pop);
-      label(G.banner.text, 0, 0, 88, '#f39a35', 'center');
-      if (G.wave === 1) label('Tap to turn around', 0, 66, 30, '#fff1da', 'center');
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, H * 0.42); ctx.scale(pop, pop);
+      label(G.banner.text, 0, 0, 96, '#f39a35', 'center');
+      if (G.wave === 1) label('Tap to turn around', 0, 72, 34, '#fff1da', 'center');
       ctx.restore();
     }
     if (mode === 'countdown') {
       const n = Math.max(1, Math.ceil(countdown));
       const f = countdown - Math.floor(countdown);
-      ctx.save(); ctx.translate(W / 2, H * 0.42); const s = 1 + f * 0.5; ctx.scale(s, s);
+      ctx.save(); ctx.translate(W / 2, H * 0.45); const s = 1 + f * 0.5; ctx.scale(s, s);
       label(String(n), 0, 0, 140, '#ffd58e', 'center'); ctx.restore();
     }
   }
@@ -712,7 +722,7 @@ p { margin: 0; line-height: 1.45; }
 
   resize();
   Promise.all([
-    load('bg', 'assets/bg.jpg'), load('hero', 'assets/hero.png'),
+    load('bg', 'assets/bg_portrait.jpg'), load('hero', 'assets/hero.png'),
     load('crystal', 'assets/crystal.png'), load('rock', 'assets/rock.png'),
     document.fonts ? document.fonts.load('40px "Lilita One"').catch(() => {}) : null,
   ]).then(() => { goTitle(); });
